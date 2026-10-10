@@ -47,9 +47,7 @@ final class ShopMenuForm
             $this->plugin,
             $player,
             'Shop',
-            '§7Balance: §f' . NumberFormatter::short(
-                $this->plugin->getMoneyEconomy()->get($player->getName())
-            ) . ' money',
+            $this->balanceLine($player),
             $handlers
         );
     }
@@ -58,15 +56,7 @@ final class ShopMenuForm
         Player $player,
         string $categoryId
     ): void {
-        $category = null;
-
-        foreach ($this->plugin->getShopManager()->getCategories() as $candidate) {
-            if ($candidate['id'] === $categoryId) {
-                $category = $candidate;
-
-                break;
-            }
-        }
+        $category = $this->plugin->getShopManager()->getCategory($categoryId);
 
         if ($category === null) {
             Ui::error($this->plugin, $player, Messages::get($this->plugin, Messages::SHOP_NO_CATEGORY));
@@ -103,9 +93,7 @@ final class ShopMenuForm
             $this->plugin,
             $player,
             $category['name'],
-            '§7Balance: §f' . NumberFormatter::short(
-                $this->plugin->getMoneyEconomy()->get($player->getName())
-            ) . ' money',
+            $this->balanceLine($player),
             $handlers
         );
     }
@@ -117,15 +105,7 @@ final class ShopMenuForm
     ): void {
         $manager = $this->plugin->getShopManager();
 
-        $entry = null;
-
-        foreach ($manager->getCategories() as $category) {
-            if ($category['id'] === $categoryId) {
-                $entry = $category['items'][$index] ?? null;
-
-                break;
-            }
-        }
+        $entry = $manager->getEntry($categoryId, $index);
 
         if ($entry === null) {
             Ui::error($this->plugin, $player, Messages::get($this->plugin, Messages::SHOP_NO_OFFER));
@@ -215,10 +195,16 @@ final class ShopMenuForm
             $this->plugin,
             $player,
             $itemName,
-            '§7Balance: §f' . NumberFormatter::short(
-                $this->plugin->getMoneyEconomy()->get($player->getName())
-            ) . ' money',
+            $this->balanceLine($player),
             $handlers
         );
+    }
+
+    private function balanceLine(
+        Player $player
+    ): string {
+        return '§7Balance: §f' . NumberFormatter::short(
+            $this->plugin->getMoneyEconomy()->get($player->getName())
+        ) . ' money';
     }
 }

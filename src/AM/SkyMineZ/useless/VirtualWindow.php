@@ -51,7 +51,7 @@ final class VirtualWindow implements Listener
     private array $fakes = [];
 
     public function __construct(
-        private Server $server,
+        Server $server,
         PluginBase $plugin
     ) {
         $pluginManager = $server->getPluginManager();

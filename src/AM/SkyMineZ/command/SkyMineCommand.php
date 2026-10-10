@@ -118,9 +118,10 @@ final class SkyMineCommand extends BaseCommand
             $requested = in_array($raw2, $keywords, true) ? $raw2 : 'toggle';
         } elseif ($sender instanceof Player) {
             // Unknown first arg on the non-admin path: treat as toggle-self
-            // rather than "player not online" spam.
+            // rather than "player not online" spam. (Reaching here means
+            // $raw1 matched no keyword and no online player.)
             $target = $sender;
-            $requested = in_array($raw1, $keywords, true) ? $raw1 : 'toggle';
+            $requested = 'toggle';
         } else {
             $this->error($sender, Messages::get($this->plugin, Messages::COMMON_PLAYER_OFFLINE));
 
@@ -416,12 +417,7 @@ final class SkyMineCommand extends BaseCommand
             $targetName
         );
 
-        if (
-            $player !== null
-            && !$sender->hasPermission(
-                Main::PERMISSION_ADMIN
-            )
-        ) {
+        if ($player !== null) {
             $player->sendMessage(
                 $this->prefixed(
                     Messages::get(

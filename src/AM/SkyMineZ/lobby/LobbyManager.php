@@ -86,11 +86,6 @@ final class LobbyManager
         $this->db->save();
     }
 
-    public function hasLobby(): bool
-    {
-        return $this->getLobby() !== null;
-    }
-
     /**
      * Where /hub sends players: the main lobby, falling back to mid-lobby so
      * a server with only a mid set still has a working hub.

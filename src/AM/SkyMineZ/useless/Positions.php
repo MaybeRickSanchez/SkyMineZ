@@ -99,6 +99,42 @@ final class Positions
         );
     }
 
+    /**
+     * Legacy list-shaped `[world, x, y, z]` record used by the older stores
+     * (mines, outposts). One canonical parser so the two managers cannot drift
+     * apart in what they accept.
+     *
+     * @param mixed $data
+     */
+    public static function fromTuple(
+        mixed $data,
+        WorldManager $worldManager
+    ): ?Position {
+        if (
+            !is_array($data)
+            || !isset($data[0], $data[1], $data[2], $data[3])
+            || !is_string($data[0])
+            || !is_numeric($data[1])
+            || !is_numeric($data[2])
+            || !is_numeric($data[3])
+        ) {
+            return null;
+        }
+
+        $world = Worlds::resolve($worldManager, $data[0]);
+
+        if ($world === null) {
+            return null;
+        }
+
+        return new Position(
+            (float) $data[1],
+            (float) $data[2],
+            (float) $data[3],
+            $world
+        );
+    }
+
     public static function toLocation(
         Position $position,
         float $yaw = 0.0,

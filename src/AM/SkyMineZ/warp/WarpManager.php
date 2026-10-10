@@ -144,11 +144,6 @@ final class WarpManager
         return $this->warps;
     }
 
-    public function count(): int
-    {
-        return count($this->warps);
-    }
-
     /**
      * Teleports a player to a warp. Returns false (with feedback) when the warp
      * is missing or its world cannot be resolved anymore.

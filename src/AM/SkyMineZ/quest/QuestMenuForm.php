@@ -38,6 +38,7 @@ final class QuestMenuForm
         }
 
         $handlers = [];
+        $lines = ['§7New quests every day. Progress resets at midnight.'];
 
         foreach ($quests as $id => $quest) {
             $progress = $manager->progressOf($player->getName(), $id);
@@ -65,12 +66,6 @@ final class QuestMenuForm
                     Ui::success($this->plugin, $who, Messages::get($this->plugin, Messages::QUEST_CLAIMED));
                     $this->send($who);
                 };
-        }
-
-        $lines = ['§7New quests every day. Progress resets at midnight.'];
-
-        foreach ($quests as $id => $quest) {
-            $progress = $manager->progressOf($player->getName(), $id);
 
             $lines[] = '§f' . $quest['name'] . ' §8| §7' . $quest['desc'];
             $lines[] = '§8' . NumberFormatter::bar(

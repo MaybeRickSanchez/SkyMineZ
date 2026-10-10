@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace AM\SkyMineZ\quest;
 
-use AM\SkyMineZ\event\EconomyChangeEvent;
 use AM\SkyMineZ\event\MinerBlockMinedEvent;
 use AM\SkyMineZ\Main;
 use AM\SkyMineZ\useless\Combat;

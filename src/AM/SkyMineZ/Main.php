@@ -591,6 +591,7 @@ final class Main extends PluginBase
             $this->outpostManager->spawnTo($player);
             $this->leaderboardManager->spawnTo($player);
             $this->slapperManager->spawnTo($player);
+            $this->labelManager->spawnTo($player);
         }
     }
 }

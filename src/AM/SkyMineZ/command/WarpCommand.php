@@ -10,7 +10,6 @@ use AM\SkyMineZ\useless\Positions;
 use AM\SkyMineZ\warp\WarpManager;
 use pocketmine\command\CommandSender;
 use pocketmine\player\Player;
-use pocketmine\world\Position;
 
 /**
  * /warp - teleport to named server warps, plus admin management.
@@ -217,16 +216,10 @@ final class WarpCommand extends BaseCommand
 
         foreach ($warps as $name => $position) {
             $sender->sendMessage(
-                $this->prefixed('§f' . $name . ' §8| §7' . $this->describe($position))
+                $this->prefixed('§f' . $name . ' §8| §7' . Positions::describe($position))
             );
         }
 
         return true;
-    }
-
-    private function describe(
-        Position $position
-    ): string {
-        return Positions::describe($position);
     }
 }

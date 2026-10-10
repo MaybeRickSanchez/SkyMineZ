@@ -96,10 +96,7 @@ final class LabelManager
         $data = [];
 
         foreach ($this->labels as $name => $label) {
-            $data[$name] = [
-                'position' => Positions::toArray($label->getPosition(), $label->getWorld()),
-                'lines' => $label->getLines()
-            ];
+            $data[$name] = $this->serialize($label);
         }
 
         $this->db->setAll($data);
@@ -115,11 +112,22 @@ final class LabelManager
             return;
         }
 
-        $this->db->set($name, [
+        $this->db->set($name, $this->serialize($label));
+        $this->db->save();
+    }
+
+    /**
+     * One canonical label record shared by single and bulk saves.
+     *
+     * @return array{position: array<string, mixed>, lines: list<string>}
+     */
+    private function serialize(
+        MultiLineTextParticle $label
+    ): array {
+        return [
             'position' => Positions::toArray($label->getPosition(), $label->getWorld()),
             'lines' => $label->getLines()
-        ]);
-        $this->db->save();
+        ];
     }
 
     /**

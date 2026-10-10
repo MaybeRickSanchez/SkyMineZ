@@ -93,7 +93,7 @@ final class MainMenuForm
                 (new QuestMenuForm($this->plugin))->send($who);
             },
             '§eTeams' => function(Player $who): void {
-                (new \AM\SkyMineZ\team\TeamMenuForm($this->plugin))->send($who);
+                (new TeamMenuForm($this->plugin))->send($who);
             },
             '§eComposer' => function(Player $who): void {
                 (new ComposerMenuForm($this->plugin))->send($who);

@@ -93,15 +93,9 @@ final class MineCommand extends BaseCommand
                     return;
                 }
 
-                $region = $this->plugin->getSelectionManager()
-                    ->getRegion($player);
+                $region = $this->selectionRegion($player);
 
                 if ($region === null) {
-                    $this->error(
-                        $player,
-                        Messages::get($this->plugin, Messages::COMMON_SELECT_REGION)
-                    );
-
                     return;
                 }
 
@@ -700,20 +694,12 @@ final class MineCommand extends BaseCommand
         CommandSender $sender,
         ?string $name
     ): ?Mine {
-        $mine = $name !== null && $name !== ''
-            ? $this->plugin->getMineManager()->get($name)
-            : null;
-
-        if ($mine === null) {
-            $this->error(
-                $sender,
-                Messages::get($this->plugin, Messages::MINE_UNKNOWN, ['name' => (string) ($name ?? '')])
-            );
-
-            return null;
-        }
-
-        return $mine;
+        return $this->resolveNamed(
+            $sender,
+            $name,
+            fn(string $id): ?Mine => $this->plugin->getMineManager()->get($id),
+            Messages::MINE_UNKNOWN
+        );
     }
 
     private function handleMenu(

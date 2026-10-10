@@ -87,11 +87,7 @@ final class QuestManager
         $data = [];
 
         foreach ($this->sheets as $player => $sheet) {
-            $data[$player] = [
-                'date' => $sheet['date'],
-                'progress' => $sheet['progress'],
-                'claimed' => array_values($sheet['claimed'])
-            ];
+            $data[$player] = $this->serializeSheet($sheet);
         }
 
         $this->db->setAll($data);
@@ -107,14 +103,25 @@ final class QuestManager
             return;
         }
 
-        $sheet = $this->sheets[$key];
+        $this->db->set($key, $this->serializeSheet($this->sheets[$key]));
+        $this->db->save();
+    }
 
-        $this->db->set($key, [
+    /**
+     * One canonical sheet record shared by single and bulk saves.
+     *
+     * @param array{date: string, progress: array<string, int>, claimed: list<string>} $sheet
+     *
+     * @return array{date: string, progress: array<string, int>, claimed: list<string>}
+     */
+    private function serializeSheet(
+        array $sheet
+    ): array {
+        return [
             'date' => $sheet['date'],
             'progress' => $sheet['progress'],
             'claimed' => array_values($sheet['claimed'])
-        ]);
-        $this->db->save();
+        ];
     }
 
     public function unloadPlayer(

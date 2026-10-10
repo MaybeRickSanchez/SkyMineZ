@@ -255,104 +255,7 @@ final class SlapperCommand extends BaseCommand
         CommandSender $sender,
         array $args
     ): bool {
-        $action = strtolower(
-            $args[1] ?? 'list'
-        );
-
-        $slapper = $this->plugin->getSlapperManager()->getSlapper(
-            $args[2] ?? ''
-        );
-
-        if ($slapper === null) {
-            $this->error(
-                $sender,
-                Messages::get($this->plugin, Messages::SLAPPER_MSG_USAGE)
-            );
-
-            return true;
-        }
-
-        $text = $this->joinArguments(
-            $args,
-            3
-        );
-
-        switch ($action) {
-            case 'add':
-                if ($text === '') {
-                    $this->error(
-                        $sender,
-                        Messages::get($this->plugin, Messages::SLAPPER_MSG_ADD_USAGE)
-                    );
-
-                    return true;
-                }
-
-                $slapper->addMessage($text);
-                break;
-
-            case 'remove':
-                $index = is_numeric($text)
-                    ? (int) $text
-                    : -1;
-
-                if (!$slapper->removeMessage($index)) {
-                    $this->error(
-                        $sender,
-                        Messages::get($this->plugin, Messages::SLAPPER_MSG_RANGE)
-                    );
-
-                    return true;
-                }
-                break;
-
-            case 'clear':
-                $slapper->clearMessages();
-                break;
-
-            case 'list':
-                $messages = $slapper->getMessages();
-
-                if ($messages === []) {
-                    $this->info(
-                        $sender,
-                        Messages::get($this->plugin, Messages::SLAPPER_MSG_NONE)
-                    );
-
-                    return true;
-                }
-
-                foreach (
-                    $messages as $index => $message
-                ) {
-                    $sender->sendMessage(
-                        $this->prefixed(
-                            Messages::get($this->plugin, Messages::SLAPPER_MSG_ROW, ['index' => $index, 'message' => $message])
-                        )
-                    );
-                }
-
-                return true;
-
-            default:
-                $this->error(
-                    $sender,
-                    Messages::get($this->plugin, Messages::SLAPPER_USE_LIST)
-                );
-
-                return true;
-        }
-
-        $this->plugin->getSlapperManager()->save(
-            $slapper->getName()
-        );
-
-        $this->success(
-            $sender,
-            Messages::get($this->plugin, Messages::SLAPPER_MSG_UPDATED)
-        );
-
-        return true;
+        return $this->handleStringList($sender, $args, true);
     }
 
     /**
@@ -362,6 +265,21 @@ final class SlapperCommand extends BaseCommand
         CommandSender $sender,
         array $args
     ): bool {
+        return $this->handleStringList($sender, $args, false);
+    }
+
+    /**
+     * Shared add/remove/clear/list flow for the slapper message and command
+     * lists. One method for both because the control flow is identical; only
+     * the Slapper accessors and message keys differ.
+     *
+     * @param list<string> $args
+     */
+    private function handleStringList(
+        CommandSender $sender,
+        array $args,
+        bool $messages
+    ): bool {
         $action = strtolower(
             $args[1] ?? 'list'
         );
@@ -370,10 +288,17 @@ final class SlapperCommand extends BaseCommand
             $args[2] ?? ''
         );
 
+        $usageKey = $messages ? Messages::SLAPPER_MSG_USAGE : Messages::SLAPPER_CMD_USAGE;
+        $addUsageKey = $messages ? Messages::SLAPPER_MSG_ADD_USAGE : Messages::SLAPPER_CMD_ADD_USAGE;
+        $rangeKey = $messages ? Messages::SLAPPER_MSG_RANGE : Messages::SLAPPER_CMD_RANGE;
+        $noneKey = $messages ? Messages::SLAPPER_MSG_NONE : Messages::SLAPPER_CMD_NONE;
+        $rowKey = $messages ? Messages::SLAPPER_MSG_ROW : Messages::SLAPPER_CMD_ROW;
+        $updatedKey = $messages ? Messages::SLAPPER_MSG_UPDATED : Messages::SLAPPER_CMD_UPDATED;
+
         if ($slapper === null) {
             $this->error(
                 $sender,
-                Messages::get($this->plugin, Messages::SLAPPER_CMD_USAGE)
+                Messages::get($this->plugin, $usageKey)
             );
 
             return true;
@@ -389,13 +314,17 @@ final class SlapperCommand extends BaseCommand
                 if ($text === '') {
                     $this->error(
                         $sender,
-                        Messages::get($this->plugin, Messages::SLAPPER_CMD_ADD_USAGE)
+                        Messages::get($this->plugin, $addUsageKey)
                     );
 
                     return true;
                 }
 
-                $slapper->addCommand($text);
+                if ($messages) {
+                    $slapper->addMessage($text);
+                } else {
+                    $slapper->addCommand($text);
+                }
                 break;
 
             case 'remove':
@@ -403,10 +332,14 @@ final class SlapperCommand extends BaseCommand
                     ? (int) $text
                     : -1;
 
-                if (!$slapper->removeCommand($index)) {
+                $removed = $messages
+                    ? $slapper->removeMessage($index)
+                    : $slapper->removeCommand($index);
+
+                if (!$removed) {
                     $this->error(
                         $sender,
-                        Messages::get($this->plugin, Messages::SLAPPER_CMD_RANGE)
+                        Messages::get($this->plugin, $rangeKey)
                     );
 
                     return true;
@@ -414,27 +347,35 @@ final class SlapperCommand extends BaseCommand
                 break;
 
             case 'clear':
-                $slapper->clearCommands();
+                if ($messages) {
+                    $slapper->clearMessages();
+                } else {
+                    $slapper->clearCommands();
+                }
                 break;
 
             case 'list':
-                $commands = $slapper->getCommands();
+                $entries = $messages
+                    ? $slapper->getMessages()
+                    : $slapper->getCommands();
 
-                if ($commands === []) {
+                if ($entries === []) {
                     $this->info(
                         $sender,
-                        Messages::get($this->plugin, Messages::SLAPPER_CMD_NONE)
+                        Messages::get($this->plugin, $noneKey)
                     );
 
                     return true;
                 }
 
                 foreach (
-                    $commands as $index => $command
+                    $entries as $index => $entry
                 ) {
                     $sender->sendMessage(
                         $this->prefixed(
-                            Messages::get($this->plugin, Messages::SLAPPER_CMD_ROW, ['index' => $index, 'command' => $command])
+                            Messages::get($this->plugin, $rowKey, $messages
+                                ? ['index' => $index, 'message' => $entry]
+                                : ['index' => $index, 'command' => $entry])
                         )
                     );
                 }
@@ -456,7 +397,7 @@ final class SlapperCommand extends BaseCommand
 
         $this->success(
             $sender,
-            Messages::get($this->plugin, Messages::SLAPPER_CMD_UPDATED)
+            Messages::get($this->plugin, $updatedKey)
         );
 
         return true;
@@ -635,20 +576,12 @@ final class SlapperCommand extends BaseCommand
         CommandSender $sender,
         ?string $name
     ): ?Slapper {
-        $slapper = $name !== null && $name !== ''
-            ? $this->plugin->getSlapperManager()->getSlapper($name)
-            : null;
-
-        if ($slapper === null) {
-            $this->error(
-                $sender,
-                Messages::get($this->plugin, Messages::SLAPPER_UNKNOWN, ['name' => (string) ($name ?? '')])
-            );
-
-            return null;
-        }
-
-        return $slapper;
+        return $this->resolveNamed(
+            $sender,
+            $name,
+            fn(string $id): ?Slapper => $this->plugin->getSlapperManager()->getSlapper($id),
+            Messages::SLAPPER_UNKNOWN
+        );
     }
 
     private function handleMenu(

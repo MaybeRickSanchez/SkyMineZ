@@ -83,15 +83,9 @@ final class OutpostCommand extends BaseCommand
                     return;
                 }
 
-                $region = $this->plugin->getSelectionManager()
-                    ->getRegion($player);
+                $region = $this->selectionRegion($player);
 
                 if ($region === null) {
-                    $this->error(
-                        $player,
-                        Messages::get($this->plugin, Messages::COMMON_SELECT_REGION)
-                    );
-
                     return;
                 }
 
@@ -345,20 +339,12 @@ final class OutpostCommand extends BaseCommand
         CommandSender $sender,
         ?string $name
     ): ?Outpost {
-        $outpost = $name !== null && $name !== ''
-            ? $this->plugin->getOutpostManager()->get($name)
-            : null;
-
-        if ($outpost === null) {
-            $this->error(
-                $sender,
-                Messages::get($this->plugin, Messages::OUTPOST_UNKNOWN, ['name' => (string) ($name ?? '')])
-            );
-
-            return null;
-        }
-
-        return $outpost;
+        return $this->resolveNamed(
+            $sender,
+            $name,
+            fn(string $id): ?Outpost => $this->plugin->getOutpostManager()->get($id),
+            Messages::OUTPOST_UNKNOWN
+        );
     }
 
     /**

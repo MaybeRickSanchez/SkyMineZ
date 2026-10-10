@@ -122,11 +122,6 @@ final class MinerManager
         return $this->has($playerName);
     }
 
-    public function remove(string $playerName): void
-    {
-        $this->unload($playerName);
-    }
-
     /**
      * @return array<string, Miner>
      */

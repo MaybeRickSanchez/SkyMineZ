@@ -32,23 +32,26 @@ final class SelectionManager implements Listener
         Player $player,
         Position $position
     ): void {
-        $name = $this->key($player);
-
-        $this->selections[$name]['pos1'] = new Position(
-            (float) $position->getFloorX(),
-            (float) $position->getFloorY(),
-            (float) $position->getFloorZ(),
-            $position->getWorld()
-        );
+        $this->setPos($player, $position, 'pos1');
     }
 
     public function setPos2(
         Player $player,
         Position $position
     ): void {
-        $name = $this->key($player);
+        $this->setPos($player, $position, 'pos2');
+    }
 
-        $this->selections[$name]['pos2'] = new Position(
+    /**
+     * Corners are floored to block coords on store so fractional player
+     * positions never cause off-by-one fill/contain mismatches.
+     */
+    private function setPos(
+        Player $player,
+        Position $position,
+        string $which
+    ): void {
+        $this->selections[$this->key($player)][$which] = new Position(
             (float) $position->getFloorX(),
             (float) $position->getFloorY(),
             (float) $position->getFloorZ(),
@@ -59,17 +62,22 @@ final class SelectionManager implements Listener
     public function getPos1(
         Player $player
     ): ?Position {
-        return $this->selections[$this->key(
-            $player
-        )]['pos1'] ?? null;
+        return $this->getPos($player, 'pos1');
     }
 
     public function getPos2(
         Player $player
     ): ?Position {
+        return $this->getPos($player, 'pos2');
+    }
+
+    private function getPos(
+        Player $player,
+        string $which
+    ): ?Position {
         return $this->selections[$this->key(
             $player
-        )]['pos2'] ?? null;
+        )][$which] ?? null;
     }
 
     /**

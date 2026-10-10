@@ -137,6 +137,7 @@ final class CrateManager
             $name,
             $crate->toArray()
         );
+        $this->main->getCrateDB()->save();
     }
 
     /**

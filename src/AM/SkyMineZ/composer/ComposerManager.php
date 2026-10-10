@@ -520,15 +520,7 @@ final class ComposerManager
         Player $player,
         Inventory $inventory
     ): void {
-        $items = [];
-
-        foreach ($inventory->getContents() as $slot) {
-            if (!$slot->isNull()) {
-                $items[] = clone $slot;
-            }
-        }
-
-        $inventory->clearAll();
+        $items = Items::drain($inventory);
 
         if ($items !== []) {
             Items::give($player, ...$items);
@@ -550,15 +542,7 @@ final class ComposerManager
             return;
         }
 
-        $items = [];
-
-        foreach ($inventory->getContents() as $slot) {
-            if (!$slot->isNull()) {
-                $items[] = clone $slot;
-            }
-        }
-
-        $inventory->clearAll();
+        $items = Items::drain($inventory);
 
         if ($items === []) {
             return;

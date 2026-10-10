@@ -231,20 +231,37 @@ final class ShopManager
     }
 
     /**
+     * @return array{id: string, name: string, items: list<array{item: Item, count: int, buy: int, sell: int}>}|null
+     */
+    public function getCategory(
+        string $categoryId
+    ): ?array {
+        foreach ($this->getCategories() as $category) {
+            if ($category['id'] === $categoryId) {
+                return $category;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array{item: Item, count: int, buy: int, sell: int}|null
+     */
+    public function getEntry(
+        string $categoryId,
+        int $index
+    ): ?array {
+        return $this->getCategory($categoryId)['items'][$index] ?? null;
+    }
+
+    /**
      * @return array{item: Item, count: int, buy: int, sell: int}|null
      */
     private function entry(
         string $categoryId,
         int $index
     ): ?array {
-        foreach ($this->getCategories() as $category) {
-            if ($category['id'] !== $categoryId) {
-                continue;
-            }
-
-            return $category['items'][$index] ?? null;
-        }
-
-        return null;
+        return $this->getEntry($categoryId, $index);
     }
 }

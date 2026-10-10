@@ -7,6 +7,7 @@ namespace AM\SkyMineZ\mine;
 use AM\SkyMineZ\event\MineResetEvent;
 use AM\SkyMineZ\Main;
 use AM\SkyMineZ\useless\Arrays;
+use AM\SkyMineZ\useless\Positions;
 use AM\SkyMineZ\useless\SpreadTask;
 use AM\SkyMineZ\useless\Worlds;
 use pocketmine\math\Vector3;
@@ -309,18 +310,6 @@ final class MineManager
         return null;
     }
 
-    /**
-     * Refreshes every mine's countdown line.
-     */
-    public function tickHolograms(): void
-    {
-        foreach (
-            $this->mines as $mine
-        ) {
-            $mine->updateHologram();
-        }
-    }
-
     public function despawnAll(): void
     {
         foreach (
@@ -332,45 +321,7 @@ final class MineManager
     }
 
     /**
-     * One second tick: refill whatever is due and respawn holograms for players
-     * who just walked into range.
-     */
-    public function onTick(): void
-    {
-        $now = time();
-
-        foreach (
-            $this->mines as $mine
-        ) {
-            if (
-                $mine->getResetInterval() <= 0
-                || $mine->isFilling()
-            ) {
-                continue;
-            }
-
-            $dueAt = $mine->getInfo()->getNextResetAt();
-
-            if ($dueAt <= 0) {
-                $mine->getInfo()->setNextResetAt(
-                    $mine->nextResetTimestamp()
-                );
-
-                continue;
-            }
-
-            if ($dueAt > $now) {
-                continue;
-            }
-
-            $mine->reset('scheduled');
-        }
-    }
-
-    /**
-     * Single-pass 1s tick: due refills + hologram refresh in one loop instead
-     * of two. Used by {@link MineTask}; onTick()/tickHolograms() are kept for
-     * backwards compatibility.
+     * Single-pass 1s tick: due refills + hologram refresh in one loop.
      */
     public function tick(): void
     {
@@ -562,37 +513,7 @@ final class MineManager
         mixed $data,
         WorldManager $worldManager
     ): ?Position {
-        if (
-            !is_array($data)
-            || !isset(
-                $data[0],
-                $data[1],
-                $data[2],
-                $data[3]
-            )
-            || !is_string($data[0])
-            || !is_numeric($data[1])
-            || !is_numeric($data[2])
-            || !is_numeric($data[3])
-        ) {
-            return null;
-        }
-
-        $world = Worlds::resolve(
-            $worldManager,
-            $data[0]
-            );
-
-        if ($world === null) {
-            return null;
-        }
-
-        return new Position(
-            (float) $data[1],
-            (float) $data[2],
-            (float) $data[3],
-            $world
-        );
+        return Positions::fromTuple($data, $worldManager);
     }
 
 }

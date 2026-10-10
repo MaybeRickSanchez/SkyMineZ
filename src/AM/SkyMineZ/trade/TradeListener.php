@@ -87,17 +87,13 @@ final class TradeListener implements Listener
         $manager = $this->main->getTradeManager();
         $source = $event->getTransaction()->getSource();
 
-        $id = $manager->sessionIdOf($source->getName());
+        $session = $manager->sessionInventoryOf($source->getName());
 
-        if ($id === null) {
+        if ($session === null) {
             return;
         }
 
-        $inventory = $manager->getInventory($id);
-
-        if ($inventory === null) {
-            return;
-        }
+        [$id, $inventory] = $session;
 
         $side = $manager->sideOf($id, $source->getName());
 
@@ -137,17 +133,13 @@ final class TradeListener implements Listener
         $manager = $this->main->getTradeManager();
         $source = $event->getTransaction()->getSource();
 
-        $id = $manager->sessionIdOf($source->getName());
+        $session = $manager->sessionInventoryOf($source->getName());
 
-        if ($id === null) {
+        if ($session === null) {
             return;
         }
 
-        $inventory = $manager->getInventory($id);
-
-        if ($inventory === null) {
-            return;
-        }
+        [$id, $inventory] = $session;
 
         foreach ($event->getTransaction()->getActions() as $action) {
             if (
@@ -166,13 +158,12 @@ final class TradeListener implements Listener
     ): void {
         $manager = $this->main->getTradeManager();
 
-        $id = $manager->sessionIdOf($event->getPlayer()->getName());
+        $id = $manager->sessionWindowId(
+            $event->getPlayer()->getName(),
+            $event->getInventory()
+        );
 
         if ($id === null) {
-            return;
-        }
-
-        if ($manager->getInventory($id) !== $event->getInventory()) {
             return;
         }
 
@@ -187,29 +178,19 @@ final class TradeListener implements Listener
     private function onQuit(
         PlayerQuitEvent $event
     ): void {
-        $manager = $this->main->getTradeManager();
-
-        $id = $manager->sessionIdOf($event->getPlayer()->getName());
-
-        if ($id === null) {
-            return;
-        }
-
-        $manager->cancel($id, \AM\SkyMineZ\config\Messages::get($this->main, \AM\SkyMineZ\config\Messages::TRADE_CANCEL_QUIT));
+        $this->main->getTradeManager()->cancelByPlayer(
+            $event->getPlayer()->getName(),
+            \AM\SkyMineZ\config\Messages::get($this->main, \AM\SkyMineZ\config\Messages::TRADE_CANCEL_QUIT)
+        );
     }
 
     private function onDeath(
         PlayerDeathEvent $event
     ): void {
-        $manager = $this->main->getTradeManager();
-
-        $id = $manager->sessionIdOf($event->getPlayer()->getName());
-
-        if ($id === null) {
-            return;
-        }
-
-        $manager->cancel($id, \AM\SkyMineZ\config\Messages::get($this->main, \AM\SkyMineZ\config\Messages::TRADE_CANCEL_DEATH));
+        $this->main->getTradeManager()->cancelByPlayer(
+            $event->getPlayer()->getName(),
+            \AM\SkyMineZ\config\Messages::get($this->main, \AM\SkyMineZ\config\Messages::TRADE_CANCEL_DEATH)
+        );
     }
 
     private function slotAllowed(

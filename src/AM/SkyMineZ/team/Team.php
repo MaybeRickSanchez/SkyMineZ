@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace AM\SkyMineZ\team;
 
+use AM\SkyMineZ\useless\Arrays;
+
 /**
  * One team: an owner, a member list, a level driven by duel XP, and a
  * win/loss record.
@@ -107,15 +109,7 @@ final class Team
             return false;
         }
 
-        $remaining = [];
-
-        foreach ($this->members as $position => $member) {
-            if ($position !== $index) {
-                $remaining[] = $member;
-            }
-        }
-
-        $this->members = $remaining;
+        $this->members = Arrays::removeIndex($this->members, (int) $index);
 
         if ($playerName === $this->owner && $this->members !== []) {
             $this->owner = $this->members[0];

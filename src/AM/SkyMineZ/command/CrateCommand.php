@@ -13,7 +13,6 @@ use AM\SkyMineZ\config\Messages;
 use AM\SkyMineZ\useless\Items;
 use AM\SkyMineZ\useless\NumberFormatter;
 use pocketmine\command\CommandSender;
-use pocketmine\item\Item;
 use pocketmine\player\Player;
 
 /**
@@ -586,9 +585,7 @@ final class CrateCommand extends BaseCommand
             return true;
         }
 
-        $item = self::parseItem(
-            $itemSpec
-        );
+        $item = Items::parse($itemSpec);
 
         if ($item === null) {
             $this->error(
@@ -853,20 +850,12 @@ final class CrateCommand extends BaseCommand
         CommandSender $sender,
         ?string $name
     ): ?Crate {
-        $crate = $name !== null && $name !== ''
-            ? $this->plugin->getCrateManager()->getCrate($name)
-            : null;
-
-        if ($crate === null) {
-            $this->error(
-                $sender,
-                Messages::get($this->plugin, Messages::CRATE_UNKNOWN, ['name' => (string) ($name ?? '')])
-            );
-
-            return null;
-        }
-
-        return $crate;
+        return $this->resolveNamed(
+            $sender,
+            $name,
+            fn(string $id): ?Crate => $this->plugin->getCrateManager()->getCrate($id),
+            Messages::CRATE_UNKNOWN
+        );
     }
 
     private function handleHelp(
@@ -906,14 +895,5 @@ final class CrateCommand extends BaseCommand
         }
 
         return true;
-    }
-
-    /**
-     * Parses `/give` style syntax, with or without metadata.
-     */
-    public static function parseItem(
-        string $spec
-    ): ?Item {
-        return Items::parse($spec);
     }
 }

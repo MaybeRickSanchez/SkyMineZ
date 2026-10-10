@@ -8,6 +8,7 @@ use AM\SkyMineZ\Main;
 use pocketmine\command\Command;
 use pocketmine\command\CommandSender;
 use pocketmine\player\Player;
+use pocketmine\world\Position;
 
 /**
  * Shared plumbing for every SkyMineZ command.
@@ -132,6 +133,70 @@ abstract class BaseCommand extends Command
             '/^[A-Za-z0-9_-]{1,32}$/',
             $name
         ) === 1;
+    }
+
+    /**
+     * Looks a named object up and reports the miss, the shape every
+     * resolveCrate/resolveMine/resolveOutpost/resolveSlapper/
+     * resolveLeaderboard shares. Returns null after reporting.
+     *
+     * @template T of object
+     *
+     * @param callable(string): ?T $lookup
+     *
+     * @return ?T
+     */
+    protected function resolveNamed(
+        CommandSender $sender,
+        ?string $name,
+        callable $lookup,
+        string $unknownKey
+    ): mixed {
+        $entity = $name !== null && $name !== ''
+            ? $lookup($name)
+            : null;
+
+        if ($entity === null) {
+            $this->error(
+                $sender,
+                \AM\SkyMineZ\config\Messages::get(
+                    $this->plugin,
+                    $unknownKey,
+                    ['name' => (string) ($name ?? '')]
+                )
+            );
+
+            return null;
+        }
+
+        return $entity;
+    }
+
+    /**
+     * Reads the shared pos1/pos2 selection, reporting when it is missing or
+     * split across worlds. Returns null after reporting.
+     *
+     * @return array{Position, Position}|null
+     */
+    protected function selectionRegion(
+        Player $player,
+        string $missingKey = \AM\SkyMineZ\config\Messages::COMMON_SELECT_REGION
+    ): ?array {
+        $region = $this->plugin->getSelectionManager()->getRegion(
+            $player
+        );
+
+        if ($region === null) {
+            $this->error(
+                $player,
+                \AM\SkyMineZ\config\Messages::get(
+                    $this->plugin,
+                    $missingKey
+                )
+            );
+        }
+
+        return $region;
     }
 
     /**

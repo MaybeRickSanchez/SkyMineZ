@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AM\SkyMineZ\mine;
 
 use AM\SkyMineZ\Main;
+use AM\SkyMineZ\useless\BlockTransactions;
 use pocketmine\event\Listener;
 use pocketmine\event\block\BlockBreakEvent;
 use pocketmine\event\block\BlockPlaceEvent;
@@ -89,39 +90,14 @@ final class MineListener implements Listener
     public function onPlace(
         BlockPlaceEvent $event
     ): void {
-        /*
-         * Placement uses a transaction rather than a single block, because
-         * multi-block structures such as doors and beds touch more than one
-         * position. Checking only the transaction's first position would let
-         * players push the second half of a bed into a mine.
-         */
         $player = $event->getPlayer();
         $world = $player->getWorld();
 
-        foreach ($event->getTransaction()->getBlocks() as $entry) {
-            // PM 5.x yields [x, y, z, Block]; tolerate any tuple shape so a
-            // core change can never fatal here.
-            if (!is_array($entry) || count($entry) < 3) {
-                continue;
-            }
-
-            [$x, $y, $z] = [$entry[0], $entry[1], $entry[2]];
-
-            if (!is_numeric($x) || !is_numeric($y) || !is_numeric($z)) {
-                continue;
-            }
-
+        foreach (BlockTransactions::vectors($event) as $position) {
             if (
                 $this->main
                     ->getMineManager()
-                    ->getMineAt(
-                        $world,
-                        new Vector3(
-                            (float) $x,
-                            (float) $y,
-                            (float) $z
-                        )
-                    ) !== null
+                    ->getMineAt($world, $position) !== null
             ) {
                 $event->cancel();
 

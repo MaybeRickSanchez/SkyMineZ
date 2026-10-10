@@ -115,6 +115,49 @@ final class TradeManager
     }
 
     /**
+     * The session id plus shared container for a player, or null when they
+     * are not trading. One canonical lookup shared by the transaction guards,
+     * which otherwise repeat the same two calls.
+     *
+     * @return array{int, VirtualInventory}|null
+     */
+    public function sessionInventoryOf(
+        string $playerName
+    ): ?array {
+        $id = $this->sessionIdOf($playerName);
+
+        if ($id === null) {
+            return null;
+        }
+
+        $inventory = $this->getInventory($id);
+
+        if ($inventory === null) {
+            return null;
+        }
+
+        return [$id, $inventory];
+    }
+
+    /**
+     * The session id when $inventory is that player's trade window, else
+     * null. Used by the close handler so closing any other window never
+     * cancels a trade.
+     */
+    public function sessionWindowId(
+        string $playerName,
+        Inventory $inventory
+    ): ?int {
+        $session = $this->sessionInventoryOf($playerName);
+
+        if ($session === null || $session[1] !== $inventory) {
+            return null;
+        }
+
+        return $session[0];
+    }
+
+    /**
      * Sends a trade request. Returns false when either side is busy, offline
      * in the relevant sense, or it is a self-trade.
      */
@@ -302,17 +345,11 @@ final class TradeManager
         int $id,
         string $reason
     ): void {
-        $session = $this->sessions[$id] ?? null;
+        $session = $this->detachSession($id);
 
         if ($session === null) {
             return;
         }
-
-        unset(
-            $this->sessions[$id],
-            $this->byPlayer[$session['a']],
-            $this->byPlayer[$session['b']]
-        );
 
         $this->closeWindows($session);
         $this->returnOffers($session);
@@ -326,6 +363,23 @@ final class TradeManager
                 );
             }
         }
+    }
+
+    /**
+     * Cancels whatever session $playerName is in, if any. Shared by the
+     * close/quit/death forwards, which otherwise repeat the same lookup.
+     */
+    public function cancelByPlayer(
+        string $playerName,
+        string $reason
+    ): void {
+        $id = $this->sessionIdOf($playerName);
+
+        if ($id === null) {
+            return;
+        }
+
+        $this->cancel($id, $reason);
     }
 
     /**
@@ -436,8 +490,7 @@ final class TradeManager
 
         $inventory = $session['inventory'];
 
-        $offersA = $this->collect($inventory, 0, self::SIDE_A_SLOTS);
-        $offersB = $this->collect($inventory, self::SIDE_B_START, self::SIZE);
+        [$offersA, $offersB] = $this->collectBoth($inventory);
 
         if ($offersA === [] && $offersB === []) {
             foreach (['a', 'b'] as $side) {
@@ -456,28 +509,15 @@ final class TradeManager
             return;
         }
 
-        unset(
-            $this->sessions[$id],
-            $this->byPlayer[$session['a']],
-            $this->byPlayer[$session['b']]
-        );
+        $this->detachSession($id);
 
         $this->closeWindows($session);
 
         $playerA = $this->main->getServer()->getPlayerExact($session['a']);
         $playerB = $this->main->getServer()->getPlayerExact($session['b']);
 
-        if ($playerA !== null && $playerA->isConnected()) {
-            Items::give($playerA, ...$offersB);
-        } else {
-            $this->dropAt($session['returnA'], $offersB);
-        }
-
-        if ($playerB !== null && $playerB->isConnected()) {
-            Items::give($playerB, ...$offersA);
-        } else {
-            $this->dropAt($session['returnB'], $offersA);
-        }
+        $this->paySide($session['a'], $session['returnA'], $offersB);
+        $this->paySide($session['b'], $session['returnB'], $offersA);
 
         foreach ([$playerA, $playerB] as $player) {
             $player?->sendMessage(
@@ -529,24 +569,70 @@ final class TradeManager
     private function returnOffers(
         array $session
     ): void {
-        $inventory = $session['inventory'];
+        [$offersA, $offersB] = $this->collectBoth($session['inventory']);
 
-        $offersA = $this->collect($inventory, 0, self::SIDE_A_SLOTS);
-        $offersB = $this->collect($inventory, self::SIDE_B_START, self::SIZE);
+        $this->paySide($session['a'], $session['returnA'], $offersA);
+        $this->paySide($session['b'], $session['returnB'], $offersB);
+    }
 
-        $playerA = $this->main->getServer()->getPlayerExact($session['a']);
-        $playerB = $this->main->getServer()->getPlayerExact($session['b']);
+    /**
+     * Drains both offer sides at once. One canonical call shared by completion
+     * (sides swap owners) and cancellation (each side goes home).
+     *
+     * @return array{list<Item>, list<Item>} [side A offers, side B offers]
+     */
+    private function collectBoth(
+        Inventory $inventory
+    ): array {
+        return [
+            $this->collect($inventory, 0, self::SIDE_A_SLOTS),
+            $this->collect($inventory, self::SIDE_B_START, self::SIZE)
+        ];
+    }
 
-        if ($playerA !== null && $playerA->isConnected()) {
-            Items::give($playerA, ...$offersA);
-        } else {
-            $this->dropAt($session['returnA'], $offersA);
+    /**
+     * Forgets a session from both indexes, returning its record. Shared by
+     * completion and cancellation so the two can never drift apart.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function detachSession(
+        int $id
+    ): ?array {
+        $session = $this->sessions[$id] ?? null;
+
+        if ($session === null) {
+            return null;
         }
 
-        if ($playerB !== null && $playerB->isConnected()) {
-            Items::give($playerB, ...$offersB);
+        unset(
+            $this->sessions[$id],
+            $this->byPlayer[$session['a']],
+            $this->byPlayer[$session['b']]
+        );
+
+        return $session;
+    }
+
+    /**
+     * Hands items to one side: inventory when online, feet-drop at their
+     * recorded spot otherwise. One canonical give-or-drop shared by completion
+     * and cancellation.
+     *
+     * @param list<Item> $items
+     * @param array{world: string, x: float, y: float, z: float, yaw: float, pitch: float} $returnAt
+     */
+    private function paySide(
+        string $side,
+        array $returnAt,
+        array $items
+    ): void {
+        $player = $this->main->getServer()->getPlayerExact($side);
+
+        if ($player !== null && $player->isConnected()) {
+            Items::give($player, ...$items);
         } else {
-            $this->dropAt($session['returnB'], $offersB);
+            $this->dropAt($returnAt, $items);
         }
     }
 

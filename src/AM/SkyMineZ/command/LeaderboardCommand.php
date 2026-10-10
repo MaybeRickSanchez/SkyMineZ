@@ -341,20 +341,12 @@ final class LeaderboardCommand extends BaseCommand
         CommandSender $sender,
         ?string $name
     ): ?Leaderboard {
-        $leaderboard = $name !== null && $name !== ''
-            ? $this->plugin->getLeaderboardManager()->get($name)
-            : null;
-
-        if ($leaderboard === null) {
-            $this->error(
-                $sender,
-                Messages::get($this->plugin, Messages::BOARD_UNKNOWN, ['name' => (string) ($name ?? '')])
-            );
-
-            return null;
-        }
-
-        return $leaderboard;
+        return $this->resolveNamed(
+            $sender,
+            $name,
+            fn(string $id): ?Leaderboard => $this->plugin->getLeaderboardManager()->get($id),
+            Messages::BOARD_UNKNOWN
+        );
     }
 
     private function handleMenu(

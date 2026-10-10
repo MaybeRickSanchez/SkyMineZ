@@ -88,55 +88,47 @@ final class HubCommand extends BaseCommand
     private function handleSet(
         CommandSender $sender
     ): bool {
-        return $this->runPlayerSubCommand(
-            $sender,
-            [],
-            function(Player $player, array $args): void {
-                if (!$player->hasPermission(Main::PERMISSION_ADMIN)) {
-                    $this->error($player, Messages::get($this->plugin, Messages::COMMON_NO_PERMISSION));
-
-                    return;
-                }
-
-                $this->plugin->getLobbyManager()->setLobby(
-                    $player->getLocation()
-                );
-
-                $this->success(
-                    $player,
-                    Messages::get(
-                        $this->plugin,
-                        Messages::HUB_SET,
-                        ['where' => Positions::describe($player->getLocation())]
-                    )
-                );
-            }
-        );
+        return $this->handleSetSide($sender, false);
     }
 
     private function handleSetMid(
         CommandSender $sender
     ): bool {
+        return $this->handleSetSide($sender, true);
+    }
+
+    /**
+     * Records the lobby (or mid-lobby) at the admin's feet. One method for
+     * both because the bodies differ only in the setter and message key.
+     */
+    private function handleSetSide(
+        CommandSender $sender,
+        bool $mid
+    ): bool {
         return $this->runPlayerSubCommand(
             $sender,
             [],
-            function(Player $player, array $args): void {
+            function(Player $player, array $args) use ($mid): void {
                 if (!$player->hasPermission(Main::PERMISSION_ADMIN)) {
                     $this->error($player, Messages::get($this->plugin, Messages::COMMON_NO_PERMISSION));
 
                     return;
                 }
 
-                $this->plugin->getLobbyManager()->setMidLobby(
-                    $player->getLocation()
-                );
+                $location = $player->getLocation();
+
+                if ($mid) {
+                    $this->plugin->getLobbyManager()->setMidLobby($location);
+                } else {
+                    $this->plugin->getLobbyManager()->setLobby($location);
+                }
 
                 $this->success(
                     $player,
                     Messages::get(
                         $this->plugin,
-                        Messages::HUB_SET_MID,
-                        ['where' => Positions::describe($player->getLocation())]
+                        $mid ? Messages::HUB_SET_MID : Messages::HUB_SET,
+                        ['where' => Positions::describe($location)]
                     )
                 );
             }
@@ -156,14 +148,9 @@ final class HubCommand extends BaseCommand
                     return;
                 }
 
-                $region = $this->plugin->getSelectionManager()->getRegion($player);
+                $region = $this->selectionRegion($player, Messages::COMMON_SELECT_AREA);
 
                 if ($region === null) {
-                    $this->error(
-                        $player,
-                        Messages::get($this->plugin, Messages::COMMON_SELECT_AREA)
-                    );
-
                     return;
                 }
 
@@ -179,35 +166,43 @@ final class HubCommand extends BaseCommand
     private function handleUnprotect(
         CommandSender $sender
     ): bool {
-        if (!$sender->hasPermission(Main::PERMISSION_ADMIN)) {
-            $this->error($sender, Messages::get($this->plugin, Messages::COMMON_NO_PERMISSION));
-
-            return true;
-        }
-
-        $this->plugin->getLobbyManager()->clearProtection();
-        $this->success($sender, Messages::get($this->plugin, Messages::HUB_PROTECT_REMOVED));
-
-        return true;
+        return $this->clearLobbySetting(
+            $sender,
+            fn(): mixed => $this->plugin->getLobbyManager()->clearProtection(),
+            Messages::HUB_PROTECT_REMOVED
+        );
     }
 
     private function handleUnset(
         CommandSender $sender
     ): bool {
-        if (!$sender->hasPermission(Main::PERMISSION_ADMIN)) {
-            $this->error($sender, Messages::get($this->plugin, Messages::COMMON_NO_PERMISSION));
-
-            return true;
-        }
-
-        $this->plugin->getLobbyManager()->clearLobby();
-        $this->success($sender, Messages::get($this->plugin, Messages::HUB_REMOVED));
-
-        return true;
+        return $this->clearLobbySetting(
+            $sender,
+            fn(): mixed => $this->plugin->getLobbyManager()->clearLobby(),
+            Messages::HUB_REMOVED
+        );
     }
 
     private function handleUnsetMid(
         CommandSender $sender
+    ): bool {
+        return $this->clearLobbySetting(
+            $sender,
+            fn(): mixed => $this->plugin->getLobbyManager()->clearMidLobby(),
+            Messages::HUB_MID_REMOVED
+        );
+    }
+
+    /**
+     * Clears one lobby setting. One method for all three because the bodies
+     * differ only in the clearer and the confirmation key.
+     *
+     * @param callable(): mixed $clear
+     */
+    private function clearLobbySetting(
+        CommandSender $sender,
+        callable $clear,
+        string $doneKey
     ): bool {
         if (!$sender->hasPermission(Main::PERMISSION_ADMIN)) {
             $this->error($sender, Messages::get($this->plugin, Messages::COMMON_NO_PERMISSION));
@@ -215,8 +210,8 @@ final class HubCommand extends BaseCommand
             return true;
         }
 
-        $this->plugin->getLobbyManager()->clearMidLobby();
-        $this->success($sender, Messages::get($this->plugin, Messages::HUB_MID_REMOVED));
+        $clear();
+        $this->success($sender, Messages::get($this->plugin, $doneKey));
 
         return true;
     }

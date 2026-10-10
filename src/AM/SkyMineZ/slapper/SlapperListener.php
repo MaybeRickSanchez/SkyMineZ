@@ -47,14 +47,7 @@ final class SlapperListener implements Listener
 
         $player = $event->getPlayer();
 
-        if (!$this->dispatch(
-            $slapper,
-            $player
-        )) {
-            return;
-        }
-
-        $slapper->execute($player);
+        $this->interact($slapper, $player);
     }
 
     public function onSlapperDamage(
@@ -102,14 +95,7 @@ final class SlapperListener implements Listener
 
         $player = $event->getPlayer();
 
-        if (!$this->dispatch(
-            $slapper,
-            $player
-        )) {
-            return;
-        }
-
-        $slapper->execute($player);
+        $this->interact($slapper, $player);
     }
 
     public function onBlockBreak(
@@ -148,6 +134,25 @@ final class SlapperListener implements Listener
             ),
             1
         );
+    }
+
+    /**
+     * Raises {@link SlapperInteractEvent} and runs the slapper unless a
+     * listener cancelled the interaction. Shared by entity and block
+     * right-clicks, which otherwise repeat the same tail.
+     */
+    private function interact(
+        Slapper $slapper,
+        Player $player
+    ): void {
+        if (!$this->dispatch(
+            $slapper,
+            $player
+        )) {
+            return;
+        }
+
+        $slapper->execute($player);
     }
 
     /**

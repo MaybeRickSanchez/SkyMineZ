@@ -27,7 +27,7 @@ final class ReadOnlyInventory
     private array $inventories = [];
 
     public function __construct(
-        private Server $server,
+        Server $server,
         PluginBase $plugin,
         private ?VirtualWindow $virtualWindow = null
     ) {

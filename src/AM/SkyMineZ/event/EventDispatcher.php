@@ -8,8 +8,7 @@ use pocketmine\event\Event;
 
 /**
  * Thin wrapper around {@link Event::call()} with a name that reads better at the
- * call site and a guard so an exception thrown by a listener of a SkyMineZ
- * event cannot take down the operation that raised it.
+ * call site.
  *
  * The plugin never registers its own listeners for these events, so this class
  * exists purely for other plugins.

@@ -7,6 +7,7 @@ namespace AM\SkyMineZ\crate;
 use AM\SkyMineZ\Main;
 use AM\SkyMineZ\config\Messages;
 use AM\SkyMineZ\ui\Ui;
+use AM\SkyMineZ\useless\Arrays;
 use AM\SkyMineZ\useless\NumberFormatter;
 use AM\SkyMineZ\event\CrateOpenEvent;
 use AM\SkyMineZ\useless\ReadOnlyInventory;
@@ -303,15 +304,7 @@ final class Crate
         int $index
     ): self
     {
-        if (!isset($this->rewards[$index])) {
-            return $this;
-        }
-
-        unset($this->rewards[$index]);
-
-        $this->rewards = array_values(
-            $this->rewards
-        );
+        $this->rewards = Arrays::removeIndex($this->rewards, $index);
 
         return $this;
     }

@@ -33,8 +33,6 @@ final class SpreadTask extends Task
 
     private int $index = 0;
 
-    private int $processed = 0;
-
     private bool $finished = false;
 
     /**
@@ -133,15 +131,15 @@ final class SpreadTask extends Task
         }
 
         /*
-         * The per-tick budget resets on every run. Without this reset the first
-         * tick would consume the whole budget and every later tick would visit
-         * zero entries, stalling the task forever.
+         * The per-tick budget is local to each run: without a fresh counter
+         * every tick the first tick would consume the whole budget and every
+         * later tick would visit zero entries, stalling the task forever.
          */
-        $this->processed = 0;
+        $processed = 0;
 
         while (
             $this->index < $total
-            && $this->processed < $this->perTick
+            && $processed < $this->perTick
         ) {
             /*
              * The callback may cancel this task (for example when the player it
@@ -155,7 +153,7 @@ final class SpreadTask extends Task
             );
 
             ++$this->index;
-            ++$this->processed;
+            ++$processed;
         }
 
         if ($this->index >= $total) {

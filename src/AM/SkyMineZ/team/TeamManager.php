@@ -714,14 +714,6 @@ final class TeamManager
     }
 
     /**
-     * @return array<int, array{a: string, b: string, endsAt: int}>
-     */
-    public function getBattles(): array
-    {
-        return $this->battles;
-    }
-
-    /**
      * @return array<string, array{level: int, wins: int}>
      */
     public function getSnapshot(): array

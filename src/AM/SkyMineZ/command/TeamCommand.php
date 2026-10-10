@@ -66,6 +66,21 @@ final class TeamCommand extends BaseCommand
         return $this->plugin->getTeamManager();
     }
 
+    /**
+     * Notes when no duel arena is set, so the fight happens in place. Shared
+     * by challenge and accept, which otherwise repeat the same check.
+     *
+     * @param array{a: mixed, b: mixed} $arena
+     */
+    private function noteArenaFallback(
+        Player $player,
+        array $arena
+    ): void {
+        if ($arena['a'] === null && $arena['b'] === null) {
+            $this->info($player, Messages::get($this->plugin, Messages::TEAM_ARENA_FIGHT_HERE));
+        }
+    }
+
     private function handleMenu(
         CommandSender $sender
     ): bool {
@@ -498,11 +513,7 @@ final class TeamCommand extends BaseCommand
             )
         );
 
-        $arena = $this->manager()->getArena();
-
-        if ($arena['a'] === null && $arena['b'] === null) {
-            $this->info($player, Messages::get($this->plugin, Messages::TEAM_ARENA_FIGHT_HERE));
-        }
+        $this->noteArenaFallback($player, $this->manager()->getArena());
 
         if ($other !== null && $own !== null) {
             $owner = $this->plugin->getServer()->getPlayerExact($other->getOwner());
@@ -535,11 +546,7 @@ final class TeamCommand extends BaseCommand
 
         $this->success($player, Messages::get($this->plugin, Messages::TEAM_DUEL_ACCEPTED));
 
-        $arena = $this->manager()->getArena();
-
-        if ($arena['a'] === null && $arena['b'] === null) {
-            $this->info($player, Messages::get($this->plugin, Messages::TEAM_ARENA_FIGHT_HERE));
-        }
+        $this->noteArenaFallback($player, $this->manager()->getArena());
 
         return true;
     }

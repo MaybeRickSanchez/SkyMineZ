@@ -53,4 +53,35 @@ final class Arrays
             && is_numeric($value[1])
             && is_numeric($value[2]);
     }
+
+    /**
+     * Removes one entry by list index, repacking so the remaining indexes stay
+     * consecutive. Every player-facing index list (mine blocks, crate rewards,
+     * slapper messages/commands, team members) shares this instead of its own
+     * repack loop.
+     *
+     * @template T
+     *
+     * @param list<T> $list
+     *
+     * @return list<T>
+     */
+    public static function removeIndex(
+        array $list,
+        int $index
+    ): array {
+        if (!isset($list[$index])) {
+            return $list;
+        }
+
+        $remaining = [];
+
+        foreach ($list as $position => $entry) {
+            if ($position !== $index) {
+                $remaining[] = $entry;
+            }
+        }
+
+        return $remaining;
+    }
 }

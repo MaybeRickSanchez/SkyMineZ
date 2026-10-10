@@ -116,9 +116,7 @@ final class ItemSweeper
                 if ($generation === $this->generation) {
                     $this->collecting = false;
 
-                    if ($this->queue === []) {
-                        $this->finish();
-                    }
+                    $this->maybeFinish();
                 }
             }
         );
@@ -155,9 +153,7 @@ final class ItemSweeper
             $entity->flagForDespawn();
         }
 
-        if ($this->queue === [] && !$this->collecting) {
-            $this->finish();
-        }
+        $this->maybeFinish();
     }
 
     /**
@@ -183,6 +179,16 @@ final class ItemSweeper
             )
         );
 
+        $this->maybeFinish();
+    }
+
+    /**
+     * Ends the pass once the queue drained and collection finished. One
+     * canonical termination check shared by the collector, the batch runner
+     * and the world purge.
+     */
+    private function maybeFinish(): void
+    {
         if ($this->queue === [] && !$this->collecting) {
             $this->finish();
         }
@@ -194,12 +200,8 @@ final class ItemSweeper
      */
     public function stop(): void
     {
-        ++$this->generation;
+        $this->finish();
         $this->active = false;
-        $this->queue = [];
-        $this->cleaning = false;
-        $this->collecting = false;
-        $this->shouldQueue = null;
     }
 
     private function finish(): void

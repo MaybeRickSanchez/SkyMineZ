@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AM\SkyMineZ\mine;
 
 use AM\SkyMineZ\Main;
+use AM\SkyMineZ\useless\Arrays;
 use pocketmine\math\Vector3;
 use pocketmine\scheduler\TaskHandler;
 use pocketmine\world\Position;
@@ -145,25 +146,11 @@ final class Mine
     public function removeBlock(
         int $index
     ): self {
-        if (!isset($this->mineBlocks[$index])) {
-            return $this;
-        }
-
         /*
          * Every index in this list is player facing (/mine block remove <index>),
          * so removing an entry has to re-pack the list instead of leaving a gap.
          */
-        $remaining = [];
-
-        foreach (
-            $this->mineBlocks as $position => $block
-        ) {
-            if ($position !== $index) {
-                $remaining[] = $block;
-            }
-        }
-
-        $this->mineBlocks = $remaining;
+        $this->mineBlocks = Arrays::removeIndex($this->mineBlocks, $index);
 
         return $this;
     }

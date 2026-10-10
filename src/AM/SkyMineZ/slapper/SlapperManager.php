@@ -367,26 +367,9 @@ if (
         return true;
     }
 
-    public function despawn(
-        string $name
-    ): bool {
-        $slapper =
-            $this->getSlapper($name);
-
-        if ($slapper === null) {
-            return false;
-        }
-
-        $this->forgetEntity($slapper);
-
-        $slapper->despawn();
-
-        return true;
-    }
-
     /**
      * Drops a slapper's live entity from the id index. The same few lines
-     * appeared in spawn(), despawn(), move() and removeSlapper().
+     * appeared in spawn(), move() and removeSlapper().
      */
     private function forgetEntity(
         Slapper $slapper
@@ -584,7 +567,7 @@ if (
         return $this->slappers;
     }
 
-    public function getBlock(
+    private function getBlock(
         string $name
     ): ?SlapperBlock {
         return $this->blocks[$name] ?? null;
@@ -724,24 +707,9 @@ if (
             return;
         }
 
-        $data =
-            $slapper->toArray();
-
-        $data['blocks'] = [];
-
-        foreach (
-            $this->getBlocksForSlapper($name)
-            as $block
-        ) {
-            $data['blocks'][
-            $block->getName()
-            ] =
-                $block->toArray();
-        }
-
         $this->db->set(
             $name,
-            $data
+            $this->serializeSlapper($slapper)
         );
 
         $this->db->save();
@@ -754,29 +722,40 @@ if (
         foreach (
             $this->slappers as $slapper
         ) {
-            $data =
-                $slapper->toArray();
-
-            $data['blocks'] = [];
-
-            foreach (
-                $this->getBlocksForSlapper(
-                    $slapper->getName()
-                ) as $block
-            ) {
-                $data['blocks'][
-                $block->getName()
-                ] =
-                    $block->toArray();
-            }
-
             $this->db->set(
                 $slapper->getName(),
-                $data
+                $this->serializeSlapper($slapper)
             );
         }
 
         $this->db->save();
+    }
+
+    /**
+     * One canonical slapper record: base data plus attached blocks.
+     *
+     * @return array<string, mixed>
+     */
+    private function serializeSlapper(
+        Slapper $slapper
+    ): array {
+        $data =
+            $slapper->toArray();
+
+        $data['blocks'] = [];
+
+        foreach (
+            $this->getBlocksForSlapper(
+                $slapper->getName()
+            ) as $block
+        ) {
+            $data['blocks'][
+            $block->getName()
+            ] =
+                $block->toArray();
+        }
+
+        return $data;
     }
 
     /**

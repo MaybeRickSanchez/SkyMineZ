@@ -34,9 +34,4 @@ final class PlayerPvPChangeEvent extends CancellableSkyMineEvent
     {
         return $this->newState;
     }
-
-    public function isPvp(): bool
-    {
-        return $this->newState;
-    }
 }

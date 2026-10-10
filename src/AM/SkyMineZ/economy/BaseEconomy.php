@@ -189,15 +189,6 @@ abstract class BaseEconomy implements Economy
         return $this->get($playerName) >= $amount;
     }
 
-    public function reset(string $playerName): void
-    {
-        $this->set(
-            $playerName,
-            0,
-            EconomyChangeEventReason::RESET
-        );
-    }
-
     /**
      * Every stored balance, including players who are currently offline. Used
      * by the leaderboards, which therefore read the whole file.

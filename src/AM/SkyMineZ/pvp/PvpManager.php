@@ -91,14 +91,6 @@ final class PvpManager
         );
     }
 
-    public function isLoaded(
-        string $playerName
-    ): bool {
-        return isset(
-            $this->states[strtolower($playerName)]
-        );
-    }
-
     public function getState(
         string $playerName
     ): bool {

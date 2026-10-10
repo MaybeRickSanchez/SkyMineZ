@@ -42,9 +42,6 @@ class CustomForm extends Form
     /** @var list<callable(mixed): bool> */
     private array $validators = [];
 
-    /** @var list<string> */
-    private array $types = [];
-
     /**
      * @param callable(Player, mixed): void|null $callable
      */
@@ -151,10 +148,6 @@ class CustomForm extends Form
             $this->labelMap
         );
         $this->validators[] = $validator;
-
-        $type = $content['type'] ?? null;
-
-        $this->types[] = is_string($type) ? $type : '';
 
         return $this;
     }

@@ -108,4 +108,27 @@ final class Items
             );
         }
     }
+
+    /**
+     * Takes every stack out of an inventory, empties it, and returns clones.
+     * One canonical drain shared by every settle/return path so leftovers can
+     * never be stranded by two slightly different loops.
+     *
+     * @return list<Item>
+     */
+    public static function drain(
+        Inventory $inventory
+    ): array {
+        $items = [];
+
+        foreach ($inventory->getContents() as $slot) {
+            if (!$slot->isNull()) {
+                $items[] = clone $slot;
+            }
+        }
+
+        $inventory->clearAll();
+
+        return $items;
+    }
 }

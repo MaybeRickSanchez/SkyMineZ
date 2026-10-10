@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AM\SkyMineZ\lobby;
 
 use AM\SkyMineZ\Main;
+use AM\SkyMineZ\useless\BlockTransactions;
 use pocketmine\event\block\BlockBreakEvent;
 use pocketmine\event\block\BlockPlaceEvent;
 use pocketmine\event\entity\EntityDamageEvent;
@@ -12,7 +13,6 @@ use pocketmine\event\Listener;
 use pocketmine\event\player\PlayerExhaustEvent;
 use pocketmine\event\player\PlayerInteractEvent;
 use pocketmine\event\player\PlayerJoinEvent;
-use pocketmine\math\Vector3;
 use pocketmine\player\Player;
 
 /**
@@ -85,23 +85,8 @@ final class LobbyListener implements Listener
         $manager = $this->main->getLobbyManager();
         $world = $event->getPlayer()->getWorld();
 
-        foreach ($event->getTransaction()->getBlocks() as $entry) {
-            if (!is_array($entry) || count($entry) < 3) {
-                continue;
-            }
-
-            [$x, $y, $z] = [$entry[0], $entry[1], $entry[2]];
-
-            if (!is_numeric($x) || !is_numeric($y) || !is_numeric($z)) {
-                continue;
-            }
-
-            if (
-                $manager->isGuarded(
-                    $world,
-                    new Vector3((float) $x, (float) $y, (float) $z)
-                )
-            ) {
+        foreach (BlockTransactions::vectors($event) as $position) {
+            if ($manager->isGuarded($world, $position)) {
                 $event->cancel();
 
                 return;

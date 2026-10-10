@@ -9,6 +9,7 @@ use AM\SkyMineZ\economy\GoldEconomy;
 use AM\SkyMineZ\config\Messages;
 use AM\SkyMineZ\Main;
 use AM\SkyMineZ\useless\Arrays;
+use AM\SkyMineZ\useless\Positions;
 use AM\SkyMineZ\useless\SpreadTask;
 use AM\SkyMineZ\useless\Worlds;
 use pocketmine\math\Vector3;
@@ -519,29 +520,10 @@ final class OutpostManager
                 : 0
         );
 
-        $label = $data['label'] ?? null;
+        $label = Positions::fromTuple($data['label'] ?? null, $worldManager);
 
-        if (is_array($label)) {
-            $labelWorld = isset($label[0]) && is_string($label[0])
-                ? Worlds::resolve($worldManager, $label[0])
-                : null;
-
-            if (
-                $labelWorld !== null
-                && isset($label[1], $label[2], $label[3])
-                && is_numeric($label[1])
-                && is_numeric($label[2])
-                && is_numeric($label[3])
-            ) {
-                $outpost->setLabelPosition(
-                    new Position(
-                        (float) $label[1],
-                        (float) $label[2],
-                        (float) $label[3],
-                        $labelWorld
-                    )
-                );
-            }
+        if ($label !== null) {
+            $outpost->setLabelPosition($label);
         }
 
         return $outpost;

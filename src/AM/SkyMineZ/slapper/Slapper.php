@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace AM\SkyMineZ\slapper;
 
+use AM\SkyMineZ\useless\Arrays;
 use pocketmine\entity\Human;
 use pocketmine\entity\Location;
 use pocketmine\entity\Skin;
@@ -205,21 +206,7 @@ final class Slapper
             return false;
         }
 
-        /*
-         * Rebuilt explicitly instead of unset()+array_values() so the list
-         * stays a dense list<string> without gaps.
-         */
-        $remaining = [];
-
-        foreach (
-            $this->commands as $position => $command
-        ) {
-            if ($position !== $index) {
-                $remaining[] = $command;
-            }
-        }
-
-        $this->commands = $remaining;
+        $this->commands = Arrays::removeIndex($this->commands, $index);
 
         return true;
     }
@@ -237,21 +224,7 @@ final class Slapper
             return false;
         }
 
-        /*
-         * Rebuilt explicitly instead of unset()+array_values() so the list
-         * stays a dense list<string> without gaps.
-         */
-        $remaining = [];
-
-        foreach (
-            $this->messages as $position => $message
-        ) {
-            if ($position !== $index) {
-                $remaining[] = $message;
-            }
-        }
-
-        $this->messages = $remaining;
+        $this->messages = Arrays::removeIndex($this->messages, $index);
 
         return true;
     }

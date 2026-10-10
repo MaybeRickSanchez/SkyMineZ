@@ -31,19 +31,12 @@ final class PositionWandListener implements Listener
     public function onBreak(
         BlockBreakEvent $event
     ): void {
-        $player = $event->getPlayer();
-
-        if (!PositionWand::isWand($player->getInventory()->getItemInHand())) {
-            return;
+        if ($this->handleWandClick(
+            $event->getPlayer(),
+            $event->getBlock()->getPosition()
+        )) {
+            $event->cancel();
         }
-
-        $event->cancel();
-
-        $this->select(
-            $player,
-            $event->getBlock()->getPosition(),
-            $player->isSneaking()
-        );
     }
 
     public function onInteract(
@@ -53,19 +46,33 @@ final class PositionWandListener implements Listener
             return;
         }
 
-        $player = $event->getPlayer();
-
-        if (!PositionWand::isWand($player->getInventory()->getItemInHand())) {
-            return;
+        if ($this->handleWandClick(
+            $event->getPlayer(),
+            $event->getBlock()->getPosition()
+        )) {
+            $event->cancel();
         }
+    }
 
-        $event->cancel();
+    /**
+     * Records a wand click as pos1 (or pos2 while sneaking). Returns false
+     * when the held item is not a wand, so the caller leaves the event alone.
+     */
+    private function handleWandClick(
+        Player $player,
+        Position $position
+    ): bool {
+        if (!PositionWand::isWand($player->getInventory()->getItemInHand())) {
+            return false;
+        }
 
         $this->select(
             $player,
-            $event->getBlock()->getPosition(),
+            $position,
             $player->isSneaking()
         );
+
+        return true;
     }
 
     private function select(
@@ -77,26 +84,15 @@ final class PositionWandListener implements Listener
 
         if ($second) {
             $selection->setPos2($player, $position);
-
-            $player->sendMessage(
-                $this->main->getConfigManager()->getPrefix()
-                . Messages::get(
-                    $this->main,
-                    Messages::WAND_POS2,
-                    ['where' => Positions::describe($position)]
-                )
-            );
-
-            return;
+        } else {
+            $selection->setPos1($player, $position);
         }
-
-        $selection->setPos1($player, $position);
 
         $player->sendMessage(
             $this->main->getConfigManager()->getPrefix()
             . Messages::get(
                 $this->main,
-                Messages::WAND_POS1,
+                $second ? Messages::WAND_POS2 : Messages::WAND_POS1,
                 ['where' => Positions::describe($position)]
             )
         );
