@@ -596,6 +596,25 @@ final class CrateCommand extends BaseCommand
             return true;
         }
 
+        /*
+         * A bare item spec cannot express custom names, lore or
+         * enchantments. When the sender holds the same kind of item, store
+         * that stack instead (at the spec's count) so renamed/enchanted gear
+         * keeps its identity instead of silently becoming a default item.
+         */
+        if ($sender instanceof Player) {
+            $held = $sender->getInventory()->getItemInHand();
+
+            if (
+                !$held->isNull()
+                && $held->getStateId() === $item->getStateId()
+            ) {
+                $held = clone $held;
+                $held->setCount($item->getCount());
+                $item = $held;
+            }
+        }
+
         $type = $args[4] ?? Reward::TYPE_COMMON;
 
         try {

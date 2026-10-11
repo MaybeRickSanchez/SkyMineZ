@@ -23,6 +23,7 @@ use pocketmine\entity\Location;
 use pocketmine\entity\object\ItemEntity;
 use pocketmine\inventory\Inventory;
 use pocketmine\item\Item;
+use pocketmine\math\Facing;
 use pocketmine\player\Player;
 use pocketmine\scheduler\ClosureTask;
 use pocketmine\world\particle\DustParticle;
@@ -133,16 +134,20 @@ final class Crate
         /*
          * Shulkers do not pair, have no double inventory, and read clearly as
          * "not a normal chest". Anything else standing here (including a
-         * leftover chest from before the shulker migration, or a shulker in
-         * the wrong color) is replaced.
+         * leftover chest from before the shulker migration, a shulker in
+         * the wrong color, or one facing the wrong way) is replaced.
+         *
+         * Facing is forced UP: a fresh shulker defaults to DOWN, which puts
+         * the opening face into the ground and looks upside down.
          */
         if (
             !$block instanceof DyedShulkerBox
             || $block->getColor() !== $this->color
+            || $block->getFacing() !== Facing::UP
         ) {
             $world->setBlock(
                 $this->position,
-                VanillaBlocks::DYED_SHULKER_BOX()->setColor($this->color)
+                VanillaBlocks::DYED_SHULKER_BOX()->setColor($this->color)->setFacing(Facing::UP)
             );
         }
 

@@ -67,8 +67,6 @@ final class CrateAdminForm
             return;
         }
 
-        $manager = $this->plugin->getCrateManager();
-
         Ui::menu(
             $this->plugin,
             $player,
@@ -118,7 +116,7 @@ final class CrateAdminForm
                     ) ?? $crate->getColor();
 
                     $crate->setColor($next);
-                    $manager->save($name);
+                    $this->plugin->getCrateManager()->save($name);
 
                     Ui::success(
                         $this->plugin,

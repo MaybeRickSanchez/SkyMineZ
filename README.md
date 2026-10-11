@@ -83,7 +83,7 @@ fixes; check the commit history before updating a production server.
 | `composer/` | Material processor: virtual workbench, multiset recipe matching, plus an in-game admin UI to create/rename/edit/delete recipes (persisted to `composer.recipes`) |
 | `tools/` | Unbreakable, undroppable progression gear with block-break XP, level-gated enchant upgrades, material costs, upgrade UI |
 | `trade/` | Chest-style two-player trades: private sides, double-confirm, change invalidates confirmations, safe cancel/timeout/death/disconnect handling |
-| `scorehud/` | Sidebar with spawn welcome screen and stats screen, hysteresis switching, delta-only packet updates, per-player toggle |
+| `scorehud/` | Sidebar with spawn welcome screen and stats screen, hysteresis switching, delta-only line updates with title-tracked recreation (welcome/stats never mix), per-player toggle |
 | `economy/` | Dual JSON currency (`money`, `gold`) with vetoable change events |
 | `miner/` | Per-player mined (mines only)/deaths/kills/streak stats |
 | `pvp/` | Per-player PvP preference with projectile attribution, duel override |
@@ -92,7 +92,7 @@ fixes; check the commit history before updating a production server.
 | `form/` | Bundled FormAPI port (Simple/Custom/Modal) compatible with PM 5.44, plus the shared `Ui` toolkit (menu/confirm/input) every window is built from |
 | `config/` | Typed `config.yml` access plus the `messages.*` catalog: every player-facing chat string is configurable with built-in fallbacks |
 | `event/` | Public cancellable events for other plugins |
-| `useless/` | `SpreadTask` (tick-spread iteration), hologram particles, `NumberFormatter`, read-only inventories, canonical `Positions`/`Items`/`Worlds` helpers |
+| `useless/` | `SpreadTask` (tick-spread iteration), hologram particles, `NumberFormatter`, read-only inventories, fake-chest virtual windows (`VirtualInventory` + `VirtualWindow`, offset clear of the player), shared placement-transaction unpacking (`BlockTransactions`), canonical `Positions`/`Items`/`Worlds`/`Arrays` helpers (`fromTuple`, `drain`, `removeIndex`) |
 
 ---
 
@@ -196,22 +196,33 @@ Admin commands (`skyminez.admin`, op by default):
 Typical first setup, in game:
 
 ```
-/skymine pos1
-/skymine pos2
-/mine create coal
-/mine block add coal coal_ore 40
-/mine block add coal stone 60
-/mine reset coal
-/crate create vote
-/crate givekey Steve vote 5
-/outpost create mid
-/lb create top money Top Balance
-/slapper create guide
-/hub set
-/warp create spawn
-/team arena seta
-/team arena setb
+ /skymine pos1
+ /skymine pos2
+ /mine create coal
+ /mine block add coal coal_ore 40
+ /mine block add coal stone 60
+ /mine reset coal
+ /crate create vote
+ /crate givekey Steve vote 5
+ /outpost create mid
+ /lb create top money Top Balance
+ /slapper create guide
+ /hub set
+ /warp create spawn
+ /team arena seta
+ /team arena setb
 ```
+
+### Where things are placed
+
+Single-point create/move commands (`/crate`, `/lb`, `/mine setlabel`,
+`/outpost setlabel`, `/label`, `/slapper`, `/skymine pos1|pos2`) resolve at
+your **eye (middle) position** — just stand where you want it, no aiming at
+blocks required. Cuboid systems (`/mine create`, `/outpost create`,
+`/hub protect`) read the shared pos1/pos2 selection instead: mark corners
+with the subcommands above or with the Position Wand (left-click = pos1,
+sneak-click = pos2, blocks are never broken). Teleports (`/warp`, `/hub`,
+duel arenas) always target feet position, so you never land inside a block.
 
 ---
 
