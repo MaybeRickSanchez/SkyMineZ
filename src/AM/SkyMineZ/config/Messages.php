@@ -99,6 +99,9 @@ final class Messages
     public const HUB_INFO_LOBBY = 'hub.info-lobby';
     public const HUB_INFO_MID = 'hub.info-mid';
     public const HUB_INFO_PROTECTION = 'hub.info-protection';
+    public const HUB_INFO_MIDZONE = 'hub.info-midzone';
+    public const HUB_SET_MIDZONE = 'hub.set-midzone';
+    public const HUB_MIDZONE_REMOVED = 'hub.midzone-removed';
 
     public const COMPOSER_ONLY = 'composer.only';
     public const COMPOSER_NO_RECIPES = 'composer.no-recipes';
@@ -543,6 +546,8 @@ final class Messages
     public const LOBBY_MID_SET = 'lobby.mid-set';
     public const LOBBY_PROTECT_SET = 'lobby.protect-set';
     public const LOBBY_PROTECT_REMOVED = 'lobby.protect-removed';
+    public const LOBBY_MIDZONE_SET = 'lobby.midzone-set';
+    public const LOBBY_MIDZONE_REMOVED = 'lobby.midzone-removed';
 
     public const WAND_POS1 = 'wand.pos1';
     public const WAND_POS2 = 'wand.pos2';
@@ -616,12 +621,15 @@ final class Messages
         self::HUB_TELEPORTED => 'Teleported to the lobby.',
         self::HUB_SET => 'Lobby set to {where}.',
         self::HUB_SET_MID => 'Mid-lobby set to {where}.',
+        self::HUB_SET_MIDZONE => 'Mid-lobby zone set: {a} to {b}.',
+        self::HUB_MIDZONE_REMOVED => 'Mid-lobby zone removed.',
         self::HUB_PROTECT_SET => 'Lobby protection area set.',
         self::HUB_PROTECT_REMOVED => 'Lobby protection removed.',
         self::HUB_REMOVED => 'Lobby removed.',
         self::HUB_MID_REMOVED => 'Mid-lobby removed.',
         self::HUB_INFO_LOBBY => '§eLobby: §f{where}',
         self::HUB_INFO_MID => '§eMid-lobby: §f{where}',
+        self::HUB_INFO_MIDZONE => '§eMid-zone: §f{state}',
         self::HUB_INFO_PROTECTION => '§eProtection: §f{state}',
         self::COMPOSER_ONLY => 'The composer can only be used in-game.',
         self::COMPOSER_NO_RECIPES => 'No composer recipes are configured.',
@@ -1049,6 +1057,8 @@ final class Messages
         self::LOBBY_HUB_SET => 'Hub set. /hub brings players here.',
         self::LOBBY_MID_SET => 'Mid-lobby set. The welcome sidebar shows around it.',
         self::LOBBY_PROTECT_SET => 'Protection area set.',
+        self::LOBBY_MIDZONE_SET => 'Mid zone set from your selection.',
+        self::LOBBY_MIDZONE_REMOVED => 'Mid zone removed.',
         self::LOBBY_PROTECT_REMOVED => 'Protection removed.',
         self::WAND_POS1 => '§aPos1 set to §f{where} §7(sneak + click for pos2)',
         self::WAND_POS2 => '§aPos2 set to §f{where}',

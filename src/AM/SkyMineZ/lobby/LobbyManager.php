@@ -14,17 +14,19 @@ use pocketmine\world\Position;
 use pocketmine\world\World;
 
 /**
- * The lobby: where players arrive, what they cannot break, and which damage
+ * The lobby: where players arrive, which world is protected, and which damage
  * and hunger rules apply there.
  *
  * Everything persistent lives in lobby.json: the hub teleport target, the
- * mid-lobby welcome position, and the optional protection cuboid. Behaviour
+ * mid-lobby welcome position, and the optional mid-lobby scoreboard zone. Behaviour
  * switches (join teleport, fall/void/hunger handling) live in config.yml under
  * `lobby:` because admins flip those far more often than they move the lobby.
  *
- * The protection box is intentionally reusable: {@link isGuarded()} is a
- * public geometric query any system can use, instead of every feature growing
- * its own hardcoded area check.
+ * Protection is map based: the world holding the hub teleport target is the
+ * lobby map, and the anti-grief rules apply everywhere inside it. There is no
+ * cuboid to maintain, so mines, crates and slappers placed in the lobby map
+ * keep working — the listener simply lets their own handlers own those
+ * blocks (see {@link LobbyListener}).
  */
 final class LobbyManager
 {
@@ -33,10 +35,10 @@ final class LobbyManager
     private Config $db;
 
     /**
-     * Memoized protection box. Null means "not built or stale" and is rebuilt
-     * lazily, so per-event checks never allocate.
+     * Memoized mid-zone box. Null means "not built or stale" and is rebuilt
+     * lazily, so per-tick zone checks never allocate or re-parse.
      */
-    private ?CollisionBox $protectionBox = null;
+    private ?CollisionBox $midZoneBox = null;
 
     public function __construct(
         private Main $main
@@ -51,7 +53,7 @@ final class LobbyManager
     {
         $this->db->reload();
 
-        $this->dropProtectionBox();
+        $this->dropMidZoneBox();
     }
 
     public function saveAll(): void
@@ -123,11 +125,14 @@ final class LobbyManager
     }
 
     /**
+     * The mid-lobby scoreboard zone (pos1/pos2 selection), or null when it was
+     * never set or its world no longer resolves.
+     *
      * @return array{Position, Position}|null
      */
-    public function getProtection(): ?array
+    public function getMidZone(): ?array
     {
-        $data = $this->db->get('protection');
+        $data = $this->db->get('midzone');
 
         if (!is_array($data) || !Arrays::isStringMap($data)) {
             return null;
@@ -159,56 +164,43 @@ final class LobbyManager
         return [$pos1, $pos2];
     }
 
-    public function setProtection(
+    public function setMidZone(
         Position $pos1,
         Position $pos2
     ): void {
-        $this->db->set('protection', [
+        $this->db->set('midzone', [
             'pos1' => Positions::toArray($pos1),
             'pos2' => Positions::toArray($pos2)
         ]);
         $this->db->save();
 
-        $this->dropProtectionBox();
+        $this->dropMidZoneBox();
     }
 
-    public function clearProtection(): void
+    public function clearMidZone(): void
     {
-        $this->db->remove('protection');
+        $this->db->remove('midzone');
         $this->db->save();
 
-        $this->dropProtectionBox();
+        $this->dropMidZoneBox();
     }
 
-    public function hasProtection(): bool
+    public function hasMidZone(): bool
     {
-        return $this->getProtection() !== null;
+        return $this->getMidZone() !== null;
     }
 
     /**
-     * Whether the anti-grief rules apply at this spot: protection must be set
-     * and enabled, and the spot must be inside it. One canonical area query —
-     * the world-aware {@link CollisionBox::isInWorld()} does the world check
-     * and the containment in a single call.
+     * Memoized mid-zone box for the per-tick scoreboard checks. Null when no
+     * zone is set or its world is gone.
      */
-    public function isGuarded(
-        World $world,
-        Vector3 $position
-    ): bool {
-        if (!$this->protectionEnabled()) {
-            return false;
-        }
-
-        return $this->protectionBox()?->isInWorld($position, $world) ?? false;
-    }
-
-    private function protectionBox(): ?CollisionBox
+    public function midZoneBox(): ?CollisionBox
     {
-        if ($this->protectionBox !== null) {
-            return $this->protectionBox;
+        if ($this->midZoneBox !== null) {
+            return $this->midZoneBox;
         }
 
-        $region = $this->getProtection();
+        $region = $this->getMidZone();
 
         if ($region === null) {
             return null;
@@ -216,18 +208,53 @@ final class LobbyManager
 
         [$pos1, $pos2] = $region;
 
-        $this->protectionBox = new CollisionBox(
+        $this->midZoneBox = new CollisionBox(
             $pos1,
             $pos2,
             $pos1->getWorld()
         );
 
-        return $this->protectionBox;
+        return $this->midZoneBox;
     }
 
-    private function dropProtectionBox(): void
+    private function dropMidZoneBox(): void
     {
-        $this->protectionBox = null;
+        $this->midZoneBox = null;
+    }
+
+    /**
+     * Whether $world is the lobby map: the world holding the hub teleport
+     * target. Worlds are compared by folder name so a reloaded world instance
+     * still matches.
+     */
+    public function isLobbyMap(
+        World $world
+    ): bool {
+        $lobby = $this->getLobby();
+
+        if ($lobby === null) {
+            return false;
+        }
+
+        return $lobby->getWorld()->getFolderName() === $world->getFolderName();
+    }
+
+    /**
+     * Whether the anti-grief rules apply in $world: map protection must be
+     * enabled and $world must be the lobby map.
+     *
+     * The position parameter is retained so existing callers keep compiling;
+     * protection is map-wide and the exact spot no longer matters.
+     */
+    public function isGuarded(
+        World $world,
+        ?Vector3 $position = null
+    ): bool {
+        if (!$this->protectionEnabled()) {
+            return false;
+        }
+
+        return $this->isLobbyMap($world);
     }
 
     public function protectionEnabled(): bool

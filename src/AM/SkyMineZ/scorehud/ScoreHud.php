@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace AM\SkyMineZ\scorehud;
 
+use AM\SkyMineZ\event\EconomyChangeEvent;
 use AM\SkyMineZ\event\ScoreHudUpdateEvent;
 use AM\SkyMineZ\Main;
+use AM\SkyMineZ\useless\CollisionBox;
 use AM\SkyMineZ\useless\SpreadTask;
+use pocketmine\event\EventPriority;
 use pocketmine\event\Listener;
 use pocketmine\event\player\PlayerJoinEvent;
 use pocketmine\event\player\PlayerQuitEvent;
@@ -20,17 +23,25 @@ use pocketmine\scheduler\TaskHandler;
 /**
  * The sidebar.
  *
- * Two layouts exist: a welcome screen while a player stands in the spawn area and
- * a stats screen everywhere else. Switching has hysteresis (see
+ * Three layouts exist: a welcome screen inside named zones, a duel screen
+ * while fighting a team battle, and a stats screen everywhere else.
+ *
+ * Places are the generic mechanism behind the welcome screen: any cuboid can
+ * be registered with a board kind, and the first matching place wins (a live
+ * duel always wins over places). The mid-lobby zone is the built-in place,
+ * synced from the lobby manager; future features register their own.
+ *
+ * Switching in and out of a zone has hysteresis (see
  * `scoreboard.spawn-welcome-seconds` and `scoreboard.spawn-leave-seconds`) so
- * walking two blocks away does not make the board flicker.
+ * walking two blocks across the border does not make the board flicker.
  *
  * Performance notes, because this runs on every player:
  *
  *  - A pass over the online players is spread across several ticks with
  *    {@link SpreadTask}, which self-cancels once every entry was visited.
- *  - Only lines that actually changed are re-sent. An unchanged board costs one
- *    string comparison per line and zero packets.
+ *  - Only boards that actually changed are re-sent. An unchanged board costs
+ *    a few comparisons and zero packets, so economy/kill hooks can refresh
+ *    eagerly.
  */
 final class ScoreHud implements Listener
 {
@@ -38,10 +49,24 @@ final class ScoreHud implements Listener
 
     private const MODE_MIDDLE = 'middle';
     private const MODE_LOBBY = 'lobby';
+    private const MODE_DUEL = 'duel';
+
+    private const PLACE_MID = 'mid';
 
     private MiddleLobbyScoreHud $middleHud;
 
     private LobbyScoreHud $lobbyHud;
+
+    private DuelScoreHud $duelHud;
+
+    /**
+     * Named scoreboard places: id => box + board kind. The mid-lobby zone is
+     * synced from the lobby manager; anything else is registered by the
+     * feature that owns it. First match in registration order wins.
+     *
+     * @var array<string, array{box: CollisionBox, board: string}>
+     */
+    private array $places = [];
 
     /** @var TaskHandler<ScoreHudTask>|null */
     private ?TaskHandler $task = null;
@@ -54,18 +79,18 @@ final class ScoreHud implements Listener
     private array $modes = [];
 
     /**
-     * Timestamp the player last entered the spawn area, or null.
+     * Timestamp the player last entered a welcome zone, or null.
      *
      * @var array<string, int|null>
      */
-    private array $spawnEnteredAt = [];
+    private array $zoneEnteredAt = [];
 
     /**
-     * Timestamp the player last left the spawn area, or null.
+     * Timestamp the player last left the welcome zone, or null.
      *
      * @var array<string, int|null>
      */
-    private array $leftSpawnAt = [];
+    private array $leftZoneAt = [];
 
     /**
      * The lines currently on each player's screen, so only changes are sent.
@@ -96,8 +121,72 @@ final class ScoreHud implements Listener
     ) {
         $this->middleHud = new MiddleLobbyScoreHud($main);
         $this->lobbyHud = new LobbyScoreHud($main);
+        $this->duelHud = new DuelScoreHud($main);
+
+        /*
+         * Refresh eagerly on every landed balance change (money AND gold),
+         * the same MONITOR pattern the quest tracker uses: cancelled events
+         * changed nothing, so they are skipped. updatePlayer() is delta-only,
+         * so this costs nothing when the visible board did not change.
+         */
+        $this->main->getServer()->getPluginManager()->registerEvent(
+            EconomyChangeEvent::class,
+            function(EconomyChangeEvent $event): void {
+                if ($event->isCancelled()) {
+                    return;
+                }
+
+                $player = $this->main->getServer()->getPlayerExact(
+                    $event->getPlayerName()
+                );
+
+                if ($player !== null) {
+                    $this->updatePlayer($player);
+                }
+            },
+            EventPriority::MONITOR,
+            $this->main
+        );
 
         $this->start();
+    }
+
+    /**
+     * Registers a named scoreboard place: players inside $box see $board
+     * (one of 'middle', 'lobby' or 'duel'). First registered match wins; a
+     * live duel always wins over places. Future features (arenas, event
+     * zones) register here instead of growing their own board logic.
+     */
+    public function registerPlace(
+        string $id,
+        CollisionBox $box,
+        string $board
+    ): void {
+        if (
+            $board !== self::MODE_MIDDLE
+            && $board !== self::MODE_LOBBY
+            && $board !== self::MODE_DUEL
+        ) {
+            throw new \InvalidArgumentException(
+                "Unknown scoreboard '{$board}' for place '{$id}'."
+            );
+        }
+
+        $this->places[$id] = ['box' => $box, 'board' => $board];
+    }
+
+    public function unregisterPlace(
+        string $id
+    ): void {
+        unset($this->places[$id]);
+    }
+
+    /**
+     * @return array<string, array{box: CollisionBox, board: string}>
+     */
+    public function getPlaces(): array
+    {
+        return $this->places;
     }
 
     private function start(): void
@@ -125,13 +214,23 @@ final class ScoreHud implements Listener
                 continue;
             }
 
+            $mode = $this->modes[$name] ?? self::MODE_LOBBY;
+
+            if (
+                $mode === self::MODE_DUEL
+                && $this->main->getTeamManager()->getBattleFor($name) === null
+            ) {
+                // Stale duel board (battle ended while config reloaded):
+                // re-resolve like a fresh join instead of repainting it.
+                $this->initializePlayer($player);
+
+                continue;
+            }
+
             $this->createScoreboard(
                 $player,
-                $this->titleFor($this->modes[$name] ?? self::MODE_LOBBY),
-                $this->linesFor(
-                    $player,
-                    $this->modes[$name] ?? self::MODE_LOBBY
-                )
+                $this->titleFor($mode),
+                $this->linesFor($player, $mode)
             );
         }
 
@@ -190,16 +289,27 @@ final class ScoreHud implements Listener
         $name = $this->key($player);
 
         unset(
-            $this->spawnEnteredAt[$name],
-            $this->leftSpawnAt[$name],
+            $this->zoneEnteredAt[$name],
+            $this->leftZoneAt[$name],
             $this->lines[$name],
             $this->titles[$name]
         );
 
-        if ($this->isAtServerSpawn($player)) {
+        if ($this->main->getTeamManager()->getBattleFor($name) !== null) {
+            $this->modes[$name] = self::MODE_DUEL;
+
+            $this->render(
+                $player,
+                self::MODE_DUEL
+            );
+
+            return;
+        }
+
+        if ($this->inWelcomeZone($player)) {
             $this->modes[$name] = self::MODE_MIDDLE;
-            $this->spawnEnteredAt[$name] = time();
-            $this->leftSpawnAt[$name] = null;
+            $this->zoneEnteredAt[$name] = time();
+            $this->leftZoneAt[$name] = null;
 
             $this->render(
                 $player,
@@ -210,7 +320,7 @@ final class ScoreHud implements Listener
         }
 
         $this->modes[$name] = self::MODE_LOBBY;
-        $this->leftSpawnAt[$name] = null;
+        $this->leftZoneAt[$name] = null;
 
         $this->render(
             $player,
@@ -227,8 +337,8 @@ final class ScoreHud implements Listener
 
         unset(
             $this->modes[$name],
-            $this->spawnEnteredAt[$name],
-            $this->leftSpawnAt[$name],
+            $this->zoneEnteredAt[$name],
+            $this->leftZoneAt[$name],
             $this->lines[$name],
             $this->titles[$name],
             $this->disabled[$name]
@@ -249,8 +359,8 @@ final class ScoreHud implements Listener
             unset(
                 $this->disabled[$name],
                 $this->modes[$name],
-                $this->spawnEnteredAt[$name],
-                $this->leftSpawnAt[$name],
+                $this->zoneEnteredAt[$name],
+                $this->leftZoneAt[$name],
                 $this->titles[$name]
             );
 
@@ -265,8 +375,8 @@ final class ScoreHud implements Listener
 
         unset(
             $this->modes[$name],
-            $this->spawnEnteredAt[$name],
-            $this->leftSpawnAt[$name],
+            $this->zoneEnteredAt[$name],
+            $this->leftZoneAt[$name],
             $this->titles[$name]
         );
 
@@ -313,20 +423,41 @@ final class ScoreHud implements Listener
         $now = time();
         $mode = $this->modes[$name];
 
-        if ($this->isAtServerSpawn($player)) {
-            $this->leftSpawnAt[$name] = null;
+        // A live duel always wins immediately, no hysteresis: duels start
+        // and end explicitly, so there is nothing to debounce.
+        if ($this->main->getTeamManager()->getBattleFor($name) !== null) {
+            $this->modes[$name] = self::MODE_DUEL;
+
+            $this->render(
+                $player,
+                self::MODE_DUEL
+            );
+
+            return;
+        }
+
+        if ($mode === self::MODE_DUEL) {
+            // The duel just ended: re-resolve from scratch like a fresh join
+            // so the title is recreated instead of lingering.
+            $this->initializePlayer($player);
+
+            return;
+        }
+
+        if ($this->inWelcomeZone($player)) {
+            $this->leftZoneAt[$name] = null;
 
             if ($mode !== self::MODE_MIDDLE) {
                 $this->modes[$name] = self::MODE_MIDDLE;
-                $this->spawnEnteredAt[$name] = $now;
+                $this->zoneEnteredAt[$name] = $now;
             }
 
-            $enteredAt = $this->spawnEnteredAt[$name] ?? $now;
+            $enteredAt = $this->zoneEnteredAt[$name] ?? $now;
 
             /*
              * The welcome screen only turns into the stats screen after the
-             * player has stayed in spawn for a while, so spawning and dying in the
-             * spawn area does not make the board change constantly.
+             * player has stayed in the zone for a while, so spawning and dying
+             * in the welcome area does not make the board change constantly.
              */
             $mode = ($now - $enteredAt) >= $this->getWelcomeSeconds()
                 ? self::MODE_LOBBY
@@ -343,17 +474,17 @@ final class ScoreHud implements Listener
         }
 
         if ($mode === self::MODE_MIDDLE) {
-            if ($this->leftSpawnAt[$name] === null) {
-                $this->leftSpawnAt[$name] = $now;
+            if ($this->leftZoneAt[$name] === null) {
+                $this->leftZoneAt[$name] = $now;
             }
 
             /*
-             * Same idea in reverse: stepping two blocks out of the radius does
+             * Same idea in reverse: stepping two blocks out of the zone does
              * not immediately swap the board.
              */
-            if (($now - $this->leftSpawnAt[$name]) >= $this->getLeaveSeconds()) {
+            if (($now - $this->leftZoneAt[$name]) >= $this->getLeaveSeconds()) {
                 $this->modes[$name] = self::MODE_LOBBY;
-                $this->spawnEnteredAt[$name] = 0;
+                $this->zoneEnteredAt[$name] = 0;
             }
 
             $mode = $this->modes[$name];
@@ -576,9 +707,11 @@ final class ScoreHud implements Listener
     private function titleFor(
         string $mode
     ): string {
-        return $mode === self::MODE_MIDDLE
-            ? $this->middleHud->getTitle()
-            : $this->lobbyHud->getTitle();
+        return match ($mode) {
+            self::MODE_MIDDLE => $this->middleHud->getTitle(),
+            self::MODE_DUEL => $this->duelHud->getTitle(),
+            default => $this->lobbyHud->getTitle()
+        };
     }
 
     /**
@@ -588,31 +721,94 @@ final class ScoreHud implements Listener
         Player $player,
         string $mode
     ): array {
-        return $mode === self::MODE_MIDDLE
-            ? $this->middleHud->getLines()
-            : $this->lobbyHud->getLines($player);
+        return match ($mode) {
+            self::MODE_MIDDLE => $this->middleHud->getLines(),
+            self::MODE_DUEL => $this->duelHud->getLines($player),
+            default => $this->lobbyHud->getLines($player)
+        };
     }
 
-    private function isAtServerSpawn(
+    /**
+     * Whether the player stands in a welcome-board place. A live duel is not
+     * a welcome zone even if its arena overlaps one; the duel board is
+     * resolved separately and always wins.
+     */
+    private function inWelcomeZone(
         Player $player
     ): bool {
-        $defaultWorld = $this->main
-            ->getServer()
-            ->getWorldManager()
-            ->getDefaultWorld();
+        $this->syncMidZone();
 
-        if ($defaultWorld === null) {
+        foreach ($this->places as $place) {
+            if ($place['board'] !== self::MODE_MIDDLE) {
+                continue;
+            }
+
+            if ($place['box']->isInWorld($player->getPosition(), $player->getWorld())) {
+                return true;
+            }
+        }
+
+        return $this->inWelcomeFallback($player);
+    }
+
+    /**
+     * Keeps the built-in mid place in sync with the lobby manager. Compares
+     * box instances, so the steady state costs one memoized getter and no
+     * allocation; a zone change re-registers exactly once.
+     */
+    private function syncMidZone(): void
+    {
+        $box = $this->main->getLobbyManager()->midZoneBox();
+        $current = $this->places[self::PLACE_MID]['box'] ?? null;
+
+        if ($box === $current) {
+            return;
+        }
+
+        if ($box === null) {
+            unset($this->places[self::PLACE_MID]);
+
+            return;
+        }
+
+        $this->places[self::PLACE_MID] = ['box' => $box, 'board' => self::MODE_MIDDLE];
+    }
+
+    /**
+     * Pre-zone behaviour for servers that never set a mid zone: the old
+     * spawn-radius circle around the mid-lobby point (or the default spawn
+     * when even that is missing).
+     */
+    private function inWelcomeFallback(
+        Player $player
+    ): bool {
+        if ($this->main->getLobbyManager()->midZoneBox() !== null) {
             return false;
         }
 
-        if ($player->getWorld() !== $defaultWorld) {
+        $center = $this->main->getLobbyManager()->getMidLobby();
+
+        if ($center === null) {
+            $defaultWorld = $this->main
+                ->getServer()
+                ->getWorldManager()
+                ->getDefaultWorld();
+
+            if ($defaultWorld === null) {
+                return false;
+            }
+
+            $center = $defaultWorld->getSpawnLocation();
+        }
+
+        if ($player->getWorld()->getFolderName() !== $center->getWorld()->getFolderName()) {
             return false;
         }
 
         $radius = $this->getSpawnRadius();
 
         return $player->getPosition()->distanceSquared(
-            $defaultWorld->getSpawnLocation()
+            $center
         ) <= ($radius * $radius);
     }
 

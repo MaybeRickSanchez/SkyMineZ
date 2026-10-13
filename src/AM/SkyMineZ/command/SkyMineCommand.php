@@ -160,6 +160,12 @@ final class SkyMineCommand extends BaseCommand
                 )
             );
 
+            // The board shows the PvP flag: refresh now instead of waiting
+            // for the next pass.
+            if ($target->isConnected()) {
+                $this->plugin->getScoreHud()->updatePlayer($target);
+            }
+
             return true;
         }
 
@@ -182,6 +188,10 @@ final class SkyMineCommand extends BaseCommand
                 ['player' => $target->getName(), 'state' => $result ? 'ON' : 'OFF']
             )
         );
+
+        if ($target->isConnected()) {
+            $this->plugin->getScoreHud()->updatePlayer($target);
+        }
 
         return true;
     }

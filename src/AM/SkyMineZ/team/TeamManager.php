@@ -714,6 +714,46 @@ final class TeamManager
     }
 
     /**
+     * The live battle $playerName is fighting in, if any. Used by the duel
+     * sidebar; battles are runtime-only so this never touches the disk.
+     *
+     * @return array{id: int, own: string, enemy: string, endsAt: int}|null
+     */
+    public function getBattleFor(
+        string $playerName
+    ): ?array {
+        $playerName = strtolower($playerName);
+
+        foreach ($this->battles as $id => $battle) {
+            $side = $this->sideOf($battle, $playerName);
+
+            if ($side === null) {
+                continue;
+            }
+
+            $ownTeam = $side === 'a'
+                ? ($this->teams[$battle['a']] ?? null)
+                : ($this->teams[$battle['b']] ?? null);
+            $foeTeam = $side === 'a'
+                ? ($this->teams[$battle['b']] ?? null)
+                : ($this->teams[$battle['a']] ?? null);
+
+            if ($ownTeam === null || $foeTeam === null) {
+                continue;
+            }
+
+            return [
+                'id' => $id,
+                'own' => $ownTeam->getName(),
+                'enemy' => $foeTeam->getName(),
+                'endsAt' => $battle['endsAt']
+            ];
+        }
+
+        return null;
+    }
+
+    /**
      * @return array<string, array{level: int, wins: int}>
      */
     public function getSnapshot(): array

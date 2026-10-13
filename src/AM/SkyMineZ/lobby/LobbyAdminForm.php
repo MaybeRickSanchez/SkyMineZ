@@ -12,7 +12,7 @@ use pocketmine\player\Player;
 
 /**
  * Lobby management window: set the hub and mid-lobby spots, fence the
- * protected area from the wand selection, or tear it down again.
+ * mid-lobby scoreboard zone from the wand selection, or tear settings down.
  */
 final class LobbyAdminForm
 {
@@ -28,6 +28,7 @@ final class LobbyAdminForm
 
         $lobby = $manager->getLobby();
         $mid = $manager->getMidLobby();
+        $zone = $manager->getMidZone();
 
         $config = $this->plugin->getConfigManager();
 
@@ -37,9 +38,10 @@ final class LobbyAdminForm
             'Lobby',
             '§7Hub: §f' . ($lobby === null ? 'not set' : Positions::describe($lobby))
             . "\n§7Mid-lobby: §f" . ($mid === null ? 'not set' : Positions::describe($mid))
-            . "\n§7Protection: §f" . ($manager->hasProtection()
-                ? ($manager->protectionEnabled() ? 'on' : 'set, disabled in config')
-                : 'not set')
+            . "\n§7Mid-zone: §f" . ($zone === null ? 'not set' : 'set')
+            . "\n§7Map protection: §f" . ($lobby === null
+                ? 'not set'
+                : ($manager->protectionEnabled() ? 'on' : 'set, disabled in config'))
             . "\n§7Join teleport: §f" . $manager->joinTeleportMode()
             . ' §8(config: lobby.join-teleport)'
             . "\n§7No fall damage: §f" . ($manager->noFallDamage() ? 'on' : 'off')
@@ -56,7 +58,7 @@ final class LobbyAdminForm
 
                     Ui::success($this->plugin, $who, Messages::get($this->plugin, Messages::LOBBY_MID_SET));
                 },
-                '§eProtect selection' => function(Player $who): void {
+                '§eSet mid zone from selection' => function(Player $who): void {
                     $region = $this->plugin->getSelectionManager()->getRegion($who);
 
                     if ($region === null) {
@@ -69,14 +71,14 @@ final class LobbyAdminForm
                         return;
                     }
 
-                    $this->plugin->getLobbyManager()->setProtection($region[0], $region[1]);
+                    $this->plugin->getLobbyManager()->setMidZone($region[0], $region[1]);
 
-                    Ui::success($this->plugin, $who, Messages::get($this->plugin, Messages::LOBBY_PROTECT_SET));
+                    Ui::success($this->plugin, $who, Messages::get($this->plugin, Messages::LOBBY_MIDZONE_SET));
                 },
-                '§cRemove protection' => function(Player $who): void {
-                    $this->plugin->getLobbyManager()->clearProtection();
+                '§cClear mid zone' => function(Player $who): void {
+                    $this->plugin->getLobbyManager()->clearMidZone();
 
-                    Ui::success($this->plugin, $who, Messages::get($this->plugin, Messages::LOBBY_PROTECT_REMOVED));
+                    Ui::success($this->plugin, $who, Messages::get($this->plugin, Messages::LOBBY_MIDZONE_REMOVED));
                 }
             ]
         );

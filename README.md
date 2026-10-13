@@ -74,16 +74,16 @@ fixes; check the commit history before updating a production server.
 | `outpost/` | Capturable zones with progress, cooldowns, owner gold payouts, holograms with settable label positions, JSON persistence |
 | `slapper/` | Clickable NPCs (your skin, messages, player/`console:` commands) plus clickable blocks bound to them; look-at-players on a 5s interval |
 | `leaderboard/` | Floating top-10 holograms for money, gold, mined, deaths, kills and team level/wins; hash-guarded re-renders (no flicker) |
-| `team/` | Teams with invites, kicks, disband, levels/XP, explicit-accept duels with arena rendezvous teleport and safe return, JSON persistence |
+| `team/` | Teams with invites, kicks, disband, levels/XP, explicit-accept duels with arena rendezvous teleport and safe return, live-duel sidebar while fighting, JSON persistence |
 | `warp/` | Named server warps with create/move/delete, per-player teleport, missing-world-safe, JSON persistence |
 | `label/` | General multi-line floating labels (wiki/help/tutorials), full CRUD, JSON persistence |
-| `lobby/` | Hub + mid-lobby positions, join teleport modes, reusable cuboid protection, fall/void/hunger guards — all configurable |
+| `lobby/` | Hub + mid-lobby positions, mid-lobby scoreboard zone (pos1/pos2), map-wide lobby protection (non-staff cannot break/place/interact; crates, slapper blocks and mines keep working), join teleport modes, fall/void/hunger guards with ground-or-hub void rescue — all configurable |
 | `shop/` | Category shop with buy/sell/sell-all through the economy managers, confirmations |
 | `quest/` | Daily quests (mine/kill/earn) with progress bars, claim-once rewards, lazy daily reset, JSON persistence |
 | `composer/` | Material processor: virtual workbench, multiset recipe matching, plus an in-game admin UI to create/rename/edit/delete recipes (persisted to `composer.recipes`) |
 | `tools/` | Unbreakable, undroppable progression gear with block-break XP, level-gated enchant upgrades, material costs, upgrade UI |
 | `trade/` | Chest-style two-player trades: private sides, double-confirm, change invalidates confirmations, safe cancel/timeout/death/disconnect handling |
-| `scorehud/` | Sidebar with spawn welcome screen and stats screen, hysteresis switching, delta-only line updates with title-tracked recreation (welcome/stats never mix), per-player toggle |
+| `scorehud/` | Sidebar with welcome, duel and stats screens, named-zone places with hysteresis switching, live refresh on economy/kill/death/PvP changes, delta-only line updates with title tracking, per-player toggle |
 | `economy/` | Dual JSON currency (`money`, `gold`) with vetoable change events |
 | `miner/` | Per-player mined (mines only)/deaths/kills/streak stats |
 | `pvp/` | Per-player PvP preference with projectile attribution, duel override |
@@ -186,7 +186,7 @@ Admin commands (`skyminez.admin`, op by default):
 | `/slapper msg\|cmd <add\|remove\|clear\|list>` | Messages and commands (`{player}` placeholder, `console:` prefix runs as console) |
 | `/slapper block <add\|remove\|list>` | Clickable blocks bound to a slapper |
 | `/lb create\|remove\|list\|info\|title\|setpos\|refresh\|menu` | Leaderboards (`/lb create top money Top Money`) |
-| `/hub set\|setmid\|unset\|unsetmid\|protect\|unprotect\|info` | Lobby positions and protection |
+| `/hub set\|setmid\|setmidzone\|unset\|unsetmid\|clearmidzone\|info` | Lobby positions, mid-lobby scoreboard zone and map protection state |
 | `/warp create\|delete\|move\|list` | Warp management |
 | `/label create\|set\|addline\|delline\|move\|remove\|list\|info` | Floating text labels |
 | `/team kick\|disband` | Owner controls (plus everything in the player table) |
@@ -218,8 +218,8 @@ Typical first setup, in game:
 Single-point create/move commands (`/crate`, `/lb`, `/mine setlabel`,
 `/outpost setlabel`, `/label`, `/slapper`, `/skymine pos1|pos2`) resolve at
 your **eye (middle) position** — just stand where you want it, no aiming at
-blocks required. Cuboid systems (`/mine create`, `/outpost create`,
-`/hub protect`) read the shared pos1/pos2 selection instead: mark corners
+blocks required. Cuboid systems (`/mine create`, `/outpost create`, `/hub setmidzone`) read
+the shared pos1/pos2 selection instead: mark corners
 with the subcommands above or with the Position Wand (left-click = pos1,
 sneak-click = pos2, blocks are never broken). Teleports (`/warp`, `/hub`,
 duel arenas) always target feet position, so you never land inside a block.
@@ -228,15 +228,17 @@ duel arenas) always target feet position, so you never land inside a block.
 
 ## Configuration
 
-All tuning lives in `config.yml`: sidebar texts and timings, PvP defaults,
+All tuning lives in `config.yml`: sidebar texts and timings (including the
+duel board under `scoreboard.duel`, with `{team}`/`{enemy}`/`{duel_time}`
+plus the usual stat placeholders), PvP defaults,
 economy starting balances, crate animation pacing and key behavior, mine
 refill budget and default interval, outpost capture/cooldown/gold values,
-lobby positions/protection/anti-damage, team/duel timings and arena spawns
+lobby positions/mid-zone/anti-damage, team/duel timings and arena spawns
 (`teams.arena-a/b`, set in game with `/team arena seta|setb`), daily quests,
 shop catalog, tool upgrade packages, composer recipes, trade timeouts, and the
 lag-cleaner mode (`off` / `ttl` / `all`), TTL, interval and per-tick budget.
 
-Every player-facing chat string lives under `messages:` (498 keys, `{braces}`
+Every player-facing chat string lives under `messages:` (503 keys, `{braces}`
 placeholders) — reword or translate without touching code. A missing or empty
 entry falls back to the built-in default, so old configs keep working; the
 legacy `pvp.disabled-message` key still wins when set.
@@ -261,6 +263,10 @@ Data files (`plugin_data/SkyMineZ/*.json`) are plain JSON and safe to inspect;
   `::hasHandlers()` so events nobody listens to skip allocation entirely
   (`MinerBlockMinedEvent` additionally funnels through
   `EventDispatcher::dispatch()`).
+- **Scoreboard places** — `ScoreHud::registerPlace($id, $box, $board)` shows
+  a board inside any cuboid (`middle`/`lobby`/`duel`); the mid-lobby zone and
+  live duels are the built-in users. `LobbyManager::isGuarded($world)` is the
+  matching query for map-wide lobby rules.
 - **Static analysis** — `composer stan` (PHPStan level 9, clean). The PocketMine
   sources are server-provided; point `scanDirectories` in `phpstan.neon.dist`
   at your server checkout.

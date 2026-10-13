@@ -19,13 +19,14 @@ server:
 # Sidebar (scoreboard)
 # ---------------------------------------------------------------------------
 scoreboard:
-  # Seconds a player must stay inside the spawn radius before the welcome
+  # Seconds a player must stay inside the welcome zone before the welcome
   # screen is replaced by the stats screen.
   spawn-welcome-seconds: 60
-  # Seconds a player may stay outside the radius before falling back to the
+  # Seconds a player may stay outside the zone before falling back to the
   # stats screen. Prevents flicker when someone walks two blocks away.
   spawn-leave-seconds: 5
-  # Radius (in blocks) around the default world spawn that counts as "spawn".
+  # Fallback when no mid-lobby zone is set (/hub setmidzone): radius around
+  # the mid-lobby point (or the default world spawn) that counts as "spawn".
   spawn-radius: 3.0
   # How many players get their sidebar refreshed per tick. Lower this if you
   # see tick spikes on very busy servers.
@@ -63,6 +64,19 @@ scoreboard:
       - "§7NOFOZ KONID VA BA PLAYERS,"
       - "§7MOBS, VA BOSS HA RO BE RO"
       - "§7SHAVID."
+      - "§f"
+      - "§aSERVER.IP §f{server_address}"
+
+  duel:
+    title: "§c§lDuel"
+    lines:
+      - "§f"
+      - "§c{team} §7vs §c{enemy}"
+      - "§f"
+      - "§eTIME: §f{duel_time}"
+      - "§eKILLS: §f{kills}"
+      - "§eDEATHS: §f{deaths}"
+      - "§eSTREAK: §f{kill_streak}"
       - "§f"
       - "§aSERVER.IP §f{server_address}"
 
@@ -145,15 +159,17 @@ lobby:
   # always = everybody on every join, never = no automatic teleport.
   # /hub and /lobby always work regardless of this setting.
   join-teleport: first
-  # When true, breaking, placing and right-clicking blocks inside the
-  # protected lobby area (set with /lobby protect) is refused.
+  # When true, the lobby map (the world holding the /hub target) is build
+  # protected: players without operator status or the admin permission can
+  # neither break, place nor right-click blocks there. Crates, slapper
+  # blocks and mines keep working because their own handlers own them.
   protection-enabled: true
-  # Cancel fall damage inside the protected area.
+  # Cancel fall damage anywhere inside the lobby map.
   no-fall-damage: true
-  # Cancel void damage inside the protected area and pull the player back to
-  # the lobby instead.
+  # Cancel void damage inside the lobby map and pull the player back onto
+  # solid ground above them (or to the lobby when there is none).
   void-rescue: true
-  # Freeze hunger inside the protected area.
+  # Freeze hunger inside the lobby map.
   no-hunger: true
 
 # ---------------------------------------------------------------------------

@@ -26,7 +26,7 @@ final class HubCommand extends BaseCommand
             $plugin,
             'hub',
             'Teleport to the lobby and manage it',
-            '/hub | /lobby [set|setmid|protect|unprotect|info]',
+            '/hub | /lobby [set|setmid|setmidzone|clearmidzone|unset|unsetmid|info]',
             ['lobby'],
             Main::PERMISSION_USE
         );
@@ -50,10 +50,10 @@ final class HubCommand extends BaseCommand
         return match ($sub) {
             'set' => $this->handleSet($sender),
             'setmid' => $this->handleSetMid($sender),
+            'setmidzone' => $this->handleSetMidZone($sender),
+            'clearmidzone', 'unsetmidzone' => $this->handleClearMidZone($sender),
             'unset', 'clear', 'unsetlobby' => $this->handleUnset($sender),
             'unsetmid', 'clearmid' => $this->handleUnsetMid($sender),
-            'protect' => $this->handleProtect($sender),
-            'unprotect' => $this->handleUnprotect($sender),
             'info' => $this->handleInfo($sender),
             default => $this->handleTeleport($sender)
         };
@@ -135,7 +135,7 @@ final class HubCommand extends BaseCommand
         );
     }
 
-    private function handleProtect(
+    private function handleSetMidZone(
         CommandSender $sender
     ): bool {
         return $this->runPlayerSubCommand(
@@ -156,20 +156,30 @@ final class HubCommand extends BaseCommand
 
                 [$pos1, $pos2] = $region;
 
-                $this->plugin->getLobbyManager()->setProtection($pos1, $pos2);
+                $this->plugin->getLobbyManager()->setMidZone($pos1, $pos2);
 
-                $this->success($player, Messages::get($this->plugin, Messages::HUB_PROTECT_SET));
+                $this->success(
+                    $player,
+                    Messages::get(
+                        $this->plugin,
+                        Messages::HUB_SET_MIDZONE,
+                        [
+                            'a' => Positions::describe($pos1),
+                            'b' => Positions::describe($pos2)
+                        ]
+                    )
+                );
             }
         );
     }
 
-    private function handleUnprotect(
+    private function handleClearMidZone(
         CommandSender $sender
     ): bool {
         return $this->clearLobbySetting(
             $sender,
-            fn(): mixed => $this->plugin->getLobbyManager()->clearProtection(),
-            Messages::HUB_PROTECT_REMOVED
+            fn(): mixed => $this->plugin->getLobbyManager()->clearMidZone(),
+            Messages::HUB_MIDZONE_REMOVED
         );
     }
 
@@ -223,6 +233,7 @@ final class HubCommand extends BaseCommand
 
         $lobby = $manager->getLobby();
         $mid = $manager->getMidLobby();
+        $zone = $manager->getMidZone();
 
         $sender->sendMessage(
             $this->prefixed(
@@ -246,10 +257,21 @@ final class HubCommand extends BaseCommand
             $this->prefixed(
                 Messages::get(
                     $this->plugin,
+                    Messages::HUB_INFO_MIDZONE,
+                    ['state' => $zone === null
+                        ? 'not set'
+                        : Positions::describe($zone[0]) . ' §8<->§f ' . Positions::describe($zone[1])]
+                )
+            )
+        );
+        $sender->sendMessage(
+            $this->prefixed(
+                Messages::get(
+                    $this->plugin,
                     Messages::HUB_INFO_PROTECTION,
-                    ['state' => $manager->hasProtection()
-                        ? ($manager->protectionEnabled() ? 'on' : 'set, disabled in config')
-                        : 'not set']
+                    ['state' => $lobby === null
+                        ? 'not set'
+                        : ($manager->protectionEnabled() ? 'on' : 'set, disabled in config')]
                 )
             )
         );

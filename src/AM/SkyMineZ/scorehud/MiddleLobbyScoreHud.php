@@ -34,38 +34,15 @@ final class MiddleLobbyScoreHud
      */
     public function getLines(): array
     {
-        $config = $this->main->getConfigManager();
-
-        $placeholders = [
-            'server_address' => ServerAddress::of(
-                $this->main
-            )
-        ];
-
-        $search = [];
-        $replace = [];
-
-        foreach (
-            $placeholders as $key => $value
-        ) {
-            $search[] = '{' . $key . '}';
-            $replace[] = $value;
-        }
-
-        $result = [];
-
-        foreach (
-            $config->getStringList(
+        return ScorePlaceholders::expand(
+            [
+                'server_address' => ServerAddress::of(
+                    $this->main
+                )
+            ],
+            $this->main->getConfigManager()->getStringList(
                 'scoreboard.welcome.lines'
-            ) as $line
-        ) {
-            $result[] = str_replace(
-                $search,
-                $replace,
-                $line
-            );
-        }
-
-        return $result;
+            )
+        );
     }
 }
