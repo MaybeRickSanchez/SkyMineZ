@@ -48,6 +48,8 @@
 
 </div>
 
+## Its under a huge update( fixing ai shits )
+
 # SkyMineZ
 
 A SkyMine plugin for PocketMine-MP 5 (NetherGames fork) that treats **tick time as a
