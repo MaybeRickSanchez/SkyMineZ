@@ -229,7 +229,7 @@ final class LobbyListener implements Listener
     private function isExempt(
         Player $player
     ): bool {
-        return $player->isOp()
+        return $this->main->getServer()->isOp($player->getName()) # Lets test
             || $player->hasPermission(Main::PERMISSION_ADMIN);
     }
 
