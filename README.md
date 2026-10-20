@@ -60,10 +60,7 @@ Inspired by the SkyMine mode of `play.bitonetop.com`.
 
 ## Project status: developing
 
-This plugin is under active development. The core is implemented, statically
-clean (PHPStan level 9) and boots on a live 5.44 server, but in-game testing on
-a real Bedrock client is still in progress. Expect behavior changes and bug
-fixes; check the commit history before updating a production server.
+This plugin is under active development.
 
 ---
 
